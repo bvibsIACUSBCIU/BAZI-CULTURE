@@ -1,0 +1,225 @@
+{
+  "corpusVersion": "1.0.0",
+  "generatedAt": "2026-07-18",
+  "calendarPolicy": {
+    "calendar": "Gregorian",
+    "timezone": "Asia/Shanghai",
+    "dependency": "lunar-javascript@1.7.7",
+    "dayBoundary": "23:00-00:59 blocked"
+  },
+  "cases": [
+    {
+      "id": "GOLDEN-PILLAR-001",
+      "category": "four-pillars",
+      "evidenceLevel": "external-anchor",
+      "reviewState": "approved",
+      "input": { "date": "2005-12-23", "time": "08:37" },
+      "expected": {
+        "pillars": { "year": "乙酉", "month": "戊子", "day": "辛巳", "time": "壬辰" },
+        "dayMaster": { "stem": "辛", "element": "金" },
+        "hiddenStems": {
+          "year": ["辛"],
+          "month": ["癸"],
+          "day": ["丙", "庚", "戊"],
+          "time": ["戊", "乙", "癸"]
+        },
+        "tenGods": {
+          "stems": ["偏财", "正印", "日主", "伤官"],
+          "branches": [["比肩"], ["食神"], ["正官", "劫财", "正印"], ["正印", "偏财", "食神"]]
+        }
+      },
+      "provenance": [
+        {
+          "sourceId": "LUNAR-JS-UPSTREAM-EIGHTCHAR",
+          "locator": "__tests__/EightChar.test.js: test1, 地支藏干, 天干十神, 地支十神",
+          "version": "1.7.7"
+        }
+      ]
+    },
+    {
+      "id": "GOLDEN-PILLAR-002",
+      "category": "four-pillars",
+      "evidenceLevel": "external-anchor",
+      "reviewState": "approved",
+      "input": { "date": "1988-02-15", "time": "22:30" },
+      "expected": {
+        "pillars": { "year": "戊辰", "month": "甲寅", "day": "庚子", "time": "丁亥" }
+      },
+      "provenance": [
+        {
+          "sourceId": "LUNAR-JS-UPSTREAM-EIGHTCHAR",
+          "locator": "__tests__/EightChar.test.js: test3",
+          "version": "1.7.7"
+        }
+      ]
+    },
+    {
+      "id": "GOLDEN-PILLAR-003",
+      "category": "four-pillars",
+      "evidenceLevel": "external-anchor",
+      "reviewState": "approved",
+      "input": { "date": "1988-02-02", "time": "22:30" },
+      "expected": {
+        "pillars": { "year": "丁卯", "month": "癸丑", "day": "丁亥", "time": "辛亥" }
+      },
+      "provenance": [
+        {
+          "sourceId": "LUNAR-JS-UPSTREAM-EIGHTCHAR",
+          "locator": "__tests__/EightChar.test.js: test4",
+          "version": "1.7.7"
+        }
+      ]
+    },
+    {
+      "id": "GOLDEN-PILLAR-004",
+      "category": "four-pillars",
+      "evidenceLevel": "external-anchor",
+      "reviewState": "approved",
+      "input": { "date": "1999-06-07", "time": "09:11" },
+      "expected": {
+        "pillars": { "year": "己卯", "month": "庚午", "day": "庚寅", "time": "辛巳" }
+      },
+      "provenance": [
+        {
+          "sourceId": "LUNAR-JS-UPSTREAM-EIGHTCHAR",
+          "locator": "__tests__/EightChar.test.js: test12",
+          "version": "1.7.7"
+        }
+      ]
+    },
+    {
+      "id": "GOLDEN-PILLAR-005",
+      "category": "four-pillars",
+      "evidenceLevel": "regression-snapshot",
+      "reviewState": "provisional",
+      "input": { "date": "1986-05-29", "time": "05:30" },
+      "expected": {
+        "pillars": { "year": "丙寅", "month": "癸巳", "day": "癸酉", "time": "乙卯" },
+        "lunarLabel": "一九八六年四月廿一"
+      },
+      "provenance": [
+        {
+          "sourceId": "LOCAL-LUNAR-JS-SNAPSHOT",
+          "locator": "calculateBazi regression fixture",
+          "version": "1.7.7"
+        }
+      ]
+    },
+    {
+      "id": "GOLDEN-PILLAR-006",
+      "category": "four-pillars",
+      "evidenceLevel": "regression-snapshot",
+      "reviewState": "provisional",
+      "input": { "date": "2024-01-29", "time": "09:30" },
+      "expected": {
+        "pillars": { "year": "癸卯", "month": "乙丑", "day": "壬辰", "time": "乙巳" },
+        "lunarLabel": "二〇二三年腊月十九"
+      },
+      "provenance": [
+        {
+          "sourceId": "LOCAL-LUNAR-JS-SNAPSHOT",
+          "locator": "locked dependency snapshot",
+          "version": "1.7.7"
+        }
+      ]
+    },
+    {
+      "id": "GOLDEN-PILLAR-007",
+      "category": "four-pillars",
+      "evidenceLevel": "regression-snapshot",
+      "reviewState": "provisional",
+      "input": { "date": "2000-02-29", "time": "12:00" },
+      "expected": {
+        "pillars": { "year": "庚辰", "month": "戊寅", "day": "丁巳", "time": "丙午" }
+      },
+      "provenance": [
+        {
+          "sourceId": "LOCAL-LUNAR-JS-SNAPSHOT",
+          "locator": "Gregorian leap-day regression",
+          "version": "1.7.7"
+        }
+      ]
+    },
+    {
+      "id": "GOLDEN-PILLAR-008",
+      "category": "four-pillars",
+      "evidenceLevel": "regression-snapshot",
+      "reviewState": "provisional",
+      "input": { "date": "1900-01-01", "time": "12:00" },
+      "expected": {
+        "pillars": { "year": "己亥", "month": "丙子", "day": "甲戌", "time": "庚午" }
+      },
+      "provenance": [
+        {
+          "sourceId": "LOCAL-LUNAR-JS-SNAPSHOT",
+          "locator": "minimum supported year regression",
+          "version": "1.7.7"
+        }
+      ]
+    },
+    {
+      "id": "GOLDEN-PILLAR-009",
+      "category": "four-pillars",
+      "evidenceLevel": "regression-snapshot",
+      "reviewState": "provisional",
+      "input": { "date": "2099-12-31", "time": "22:00" },
+      "expected": {
+        "pillars": { "year": "己未", "month": "丙子", "day": "壬寅", "time": "辛亥" }
+      },
+      "provenance": [
+        {
+          "sourceId": "LOCAL-LUNAR-JS-SNAPSHOT",
+          "locator": "maximum supported year regression",
+          "version": "1.7.7"
+        }
+      ]
+    },
+    {
+      "id": "GOLDEN-TERM-001",
+      "category": "solar-term-boundary",
+      "evidenceLevel": "official-boundary",
+      "reviewState": "provisional",
+      "input": { "date": "2020-02-04", "time": "16:00" },
+      "expected": {
+        "side": "before",
+        "boundary": "2020-02-04 17:03:19",
+        "pillars": { "year": "己亥", "month": "丁丑", "day": "丁丑", "time": "戊申" }
+      },
+      "provenance": [
+        {
+          "sourceId": "LUNAR-JS-JIEQI-TABLE",
+          "locator": "2020 立春 before-boundary snapshot",
+          "version": "1.7.7"
+        },
+        {
+          "sourceId": "GB-T-33661-2017",
+          "locator": "节气编算规则；具体时刻待紫金山天文台历书复核"
+        }
+      ]
+    },
+    {
+      "id": "GOLDEN-TERM-002",
+      "category": "solar-term-boundary",
+      "evidenceLevel": "official-boundary",
+      "reviewState": "provisional",
+      "input": { "date": "2020-02-04", "time": "18:00" },
+      "expected": {
+        "side": "after",
+        "boundary": "2020-02-04 17:03:19",
+        "pillars": { "year": "庚子", "month": "戊寅", "day": "丁丑", "time": "己酉" }
+      },
+      "provenance": [
+        {
+          "sourceId": "LUNAR-JS-JIEQI-TABLE",
+          "locator": "2020 立春 after-boundary snapshot",
+          "version": "1.7.7"
+        },
+        {
+          "sourceId": "GB-T-33661-2017",
+          "locator": "节气编算规则；具体时刻待紫金山天文台历书复核"
+        }
+      ]
+    }
+  ]
+}
+

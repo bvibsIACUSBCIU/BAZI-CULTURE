@@ -1,0 +1,98 @@
+{
+  "corpusVersion": "1.0.0",
+  "cases": [
+    {
+      "id": "GOLDEN-POLICY-001",
+      "category": "input-policy",
+      "evidenceLevel": "product-policy",
+      "reviewState": "approved",
+      "input": { "date": "2025-02-29", "time": "12:00" },
+      "expected": { "errorCode": "INVALID_DATE" },
+      "provenance": [
+        { "sourceId": "GREGORIAN-CALENDAR", "locator": "2025 is not a leap year" }
+      ]
+    },
+    {
+      "id": "GOLDEN-POLICY-002",
+      "category": "input-policy",
+      "evidenceLevel": "product-policy",
+      "reviewState": "approved",
+      "input": { "date": "1899-12-31", "time": "12:00" },
+      "expected": { "errorCode": "INVALID_DATE" },
+      "provenance": [
+        { "sourceId": "MVP-SCOPE", "locator": "supported range starts at 1900" }
+      ]
+    },
+    {
+      "id": "GOLDEN-POLICY-003",
+      "category": "input-policy",
+      "evidenceLevel": "product-policy",
+      "reviewState": "approved",
+      "input": { "date": "2100-01-01", "time": "12:00" },
+      "expected": { "errorCode": "INVALID_DATE" },
+      "provenance": [
+        { "sourceId": "MVP-SCOPE", "locator": "supported range ends at 2099" }
+      ]
+    },
+    {
+      "id": "GOLDEN-POLICY-004",
+      "category": "day-boundary",
+      "evidenceLevel": "product-policy",
+      "reviewState": "approved",
+      "input": { "date": "1988-02-15", "time": "23:30" },
+      "expected": { "errorCode": "DAY_BOUNDARY_REVIEW_REQUIRED" },
+      "provenance": [
+        {
+          "sourceId": "LUNAR-JS-UPSTREAM-EIGHTCHAR",
+          "locator": "__tests__/EightChar.test.js: test2 and test2a demonstrate two sect results",
+          "version": "1.7.7"
+        }
+      ]
+    },
+    {
+      "id": "GOLDEN-POLICY-005",
+      "category": "day-boundary",
+      "evidenceLevel": "product-policy",
+      "reviewState": "approved",
+      "input": { "date": "2000-01-01", "time": "00:30" },
+      "expected": { "errorCode": "DAY_BOUNDARY_REVIEW_REQUIRED" },
+      "provenance": [
+        { "sourceId": "MVP-SCOPE", "locator": "00:00-00:59 remains blocked pending review" }
+      ]
+    },
+    {
+      "id": "GOLDEN-POLICY-006",
+      "category": "input-policy",
+      "evidenceLevel": "product-policy",
+      "reviewState": "approved",
+      "input": { "date": "2000-01-01", "time": "24:00" },
+      "expected": { "errorCode": "INVALID_TIME" },
+      "provenance": [
+        { "sourceId": "ISO-LOCAL-TIME", "locator": "accepted input is HH:mm from 00:00 to 23:59" }
+      ]
+    },
+    {
+      "id": "GOLDEN-POLICY-007",
+      "category": "input-policy",
+      "evidenceLevel": "product-policy",
+      "reviewState": "approved",
+      "input": { "date": "2000-01-01", "time": "12:60" },
+      "expected": { "errorCode": "INVALID_TIME" },
+      "provenance": [
+        { "sourceId": "ISO-LOCAL-TIME", "locator": "minute range is 00-59" }
+      ]
+    },
+    {
+      "id": "GOLDEN-POLICY-008",
+      "category": "input-policy",
+      "evidenceLevel": "product-policy",
+      "reviewState": "approved",
+      "input": { "date": "2000-01-01", "timeKnown": false },
+      "expected": { "timeKnown": false, "timePillar": null, "elementTotal": 6 },
+      "provenance": [
+        { "sourceId": "MVP-SCOPE", "locator": "unknown time omits hour pillar" }
+      ]
+    }
+  ]
+}
+

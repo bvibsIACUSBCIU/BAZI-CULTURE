@@ -1,0 +1,20 @@
+{
+  "name": "bazi-culture-mvp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/local-polling.mjs",
+    "dev:web": "node scripts/web-dev.mjs",
+    "test": "node --test api/*.test.mjs",
+    "set:webhook": "node scripts/set-webhook.mjs"
+  },
+  "dependencies": {
+    "iztro": "2.5.8",
+    "lunar-javascript": "1.7.7",
+    "qimen-engine": "github:qfdk/qimen#8a9734a3fcaa01adc8bffc7c4b983c00ad932868"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

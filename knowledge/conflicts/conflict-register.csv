@@ -1,0 +1,3 @@
+conflict_id,status,concept,method_a,rule_or_source_a,method_b,rule_or_source_b,impact_on_report,resolution,reviewer,review_date
+CF-DAYBOUNDARY-001,pending_review,23:00-00:59换日,晚子时沿用当日日柱,lunar-javascript sect 2,子初换用次日日柱,lunar-javascript sect 1,可能改变日柱与全部十神,"用户未明确选择前继续阻止计算；后续并列实现两种策略",,2026-07-18
+CF-POLARITY-001,resolved,正偏是否等同吉凶,正类优先的部分传统表述,SRC-SMTH-SKQS-001卷五,四库提要指出偏官偏印偏财亦能得力,SRC-SMTH-SKQS-001提要,影响十神解释语气,"正偏仅作为阴阳分类，不直接赋予好坏；执行BZ-TENGOD-0002与BZ-SAFETY-0001",Codex-source-review,2026-07-18

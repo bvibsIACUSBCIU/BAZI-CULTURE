@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>两仪 · 紫微斗数与奇门遁甲</title>
+    <style>
+      :root { color-scheme: dark; --bg:#080d13; --panel:#101821; --line:#6f5730; --gold:#d8ad62; --ink:#f1e9dc; --muted:#8e99a5; --red:#b94834; }
+      * { box-sizing:border-box; }
+      body { margin:0; min-height:100vh; color:var(--ink); font-family:"Noto Serif SC","Songti SC",serif; background:radial-gradient(circle at 72% 10%,#18202a 0,transparent 34%),linear-gradient(145deg,#070b10,#0b131c 65%,#080c12); }
+      body::before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.22; background-image:radial-gradient(#d8ad62 0.7px,transparent .8px); background-size:43px 43px; }
+      a { color:inherit; }
+      .shell { width:min(1500px,94vw); margin:auto; padding:24px 0 64px; position:relative; }
+      header { display:flex; align-items:center; justify-content:space-between; gap:20px; border-bottom:1px solid #26303b; padding-bottom:18px; }
+      .brand { display:flex; align-items:center; gap:13px; text-decoration:none; color:var(--gold); letter-spacing:.18em; }
+      .mark { width:48px; height:48px; display:grid; place-items:center; border:1px solid var(--gold); border-radius:50%; font-size:27px; box-shadow:0 0 28px #d8ad6222; }
+      .back { color:var(--muted); text-decoration:none; font-family:system-ui,sans-serif; }
+      .hero { padding:55px 0 28px; text-align:center; }
+      .eyebrow { color:var(--gold); letter-spacing:.35em; font-size:13px; }
+      h1 { margin:14px 0 10px; font-size:clamp(34px,6vw,72px); font-weight:500; letter-spacing:.08em; }
+      .hero p { color:var(--muted); font-family:system-ui,sans-serif; }
+      .tabs { width:min(560px,100%); margin:28px auto 36px; display:grid; grid-template-columns:1fr 1fr; padding:5px; border:1px solid #473a28; border-radius:999px; background:#0c1219cc; }
+      .tab { border:0; border-radius:999px; background:transparent; color:var(--muted); padding:13px; font-size:16px; cursor:pointer; }
+      .tab.active { color:#1a130b; background:linear-gradient(120deg,#b98743,#f0cd81); box-shadow:0 5px 22px #c5975040; }
+      .workspace { display:grid; grid-template-columns:minmax(290px,380px) minmax(0,1fr); gap:24px; align-items:start; }
+      .card { border:1px solid #3c352a; background:linear-gradient(150deg,#121b25e8,#0c131bcc); border-radius:18px; padding:24px; box-shadow:0 22px 70px #0007; backdrop-filter:blur(12px); }
+      h2 { margin:0 0 22px; font-size:25px; font-weight:500; color:#f2dfbe; }
+      label { display:block; margin:16px 0 7px; color:#c9c1b4; font-family:system-ui,sans-serif; font-size:14px; }
+      input,select { width:100%; border:1px solid #3b4651; background:#090f16; color:var(--ink); padding:13px 14px; border-radius:10px; font:inherit; }
+      .row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+      .consent { display:flex; gap:10px; margin:20px 0; color:var(--muted); font:13px/1.6 system-ui,sans-serif; }
+      .consent input { width:auto; margin:4px 0 auto; }
+      .submit { width:100%; border:1px solid #e0b86b; color:#1b1208; padding:14px; border-radius:11px; cursor:pointer; font-size:17px; background:linear-gradient(105deg,#c8994e,#f0cb82 52%,#a94332); }
+      .note,.error { margin-top:14px; color:var(--muted); font:13px/1.65 system-ui,sans-serif; }
+      .error { color:#ffaaa0; }
+      .output { min-height:560px; }
+      .empty { min-height:500px; display:grid; place-items:center; text-align:center; color:var(--muted); font-family:system-ui,sans-serif; }
+      .summary { display:flex; flex-wrap:wrap; gap:9px; margin-bottom:18px; }
+      .pill { border:1px solid #5c482a; background:#1b1710; color:#dfbd7c; padding:7px 10px; border-radius:999px; font:13px system-ui,sans-serif; }
+      .palace-grid { display:grid; grid-template-columns:repeat(4,minmax(150px,1fr)); gap:10px; }
+      .palace { min-height:145px; border:1px solid #2f3b47; border-radius:12px; padding:13px; background:#0a1118d9; }
+      .palace.soul,.palace.key { border-color:#c59850; box-shadow:inset 0 0 28px #c5985012; }
+      .palace h3 { margin:0 0 8px; color:var(--gold); font-size:17px; display:flex; justify-content:space-between; }
+      .palace p { margin:5px 0; color:#cbd0d4; font:13px/1.55 system-ui,sans-serif; }
+      .qimen-grid { width:min(850px,100%); margin:auto; display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+      .qimen-grid .palace { min-height:180px; }
+      details { margin-top:18px; border-top:1px solid #29343e; padding-top:15px; }
+      summary { color:#cdb17d; cursor:pointer; }
+      pre { white-space:pre-wrap; color:#aeb7bf; font:13px/1.75 ui-monospace,monospace; }
+      [hidden] { display:none!important; }
+      @media(max-width:900px){ .workspace{grid-template-columns:1fr}.palace-grid{grid-template-columns:repeat(2,1fr)} .shell{padding-bottom:28px} }
+      @media(max-width:520px){ .row{grid-template-columns:1fr}.palace-grid{grid-template-columns:1fr}.qimen-grid{grid-template-columns:1fr}.qimen-grid .palace{min-height:140px} header{align-items:flex-start}.hero{padding-top:34px} }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header>
+        <a class="brand" href="/"><span class="mark">☯</span><span>两仪研究室</span></a>
+        <a class="back" href="/">← 返回八字研读</a>
+      </header>
+      <section class="hero">
+        <div class="eyebrow">THREE SYSTEMS · ONE BOUNDARY</div>
+        <h1>各守其法，不混其辞</h1>
+        <p>紫微出生盘与时家奇门独立计算，AI 不参与排盘。</p>
+        <div class="tabs" role="tablist">
+          <button class="tab active" data-system="ziwei" type="button">紫微斗数</button>
+          <button class="tab" data-system="qimen" type="button">奇门遁甲</button>
+        </div>
+      </section>
+
+      <main class="workspace">
+        <section class="card">
+          <form id="ziwei-form">
+            <h2>紫微出生盘</h2>
+            <label for="z-date">公历出生日期</label><input id="z-date" type="date" min="1900-01-01" max="2099-12-31" required />
+            <div class="row">
+              <div><label for="z-time">出生时间</label><input id="z-time" type="time" required /></div>
+              <div><label for="z-gender">性别</label><select id="z-gender" required><option value="">请选择</option><option>男</option><option>女</option></select></div>
+            </div>
+            <label class="consent"><input id="z-consent" type="checkbox" required /><span>我已满 18 岁，同意本次处理出生资料。原始资料默认不持久化。</span></label>
+            <button class="submit" type="submit">生成十二宫命盘 →</button>
+            <p class="note">必须知道出生时辰。当前按 UTC+8 墙上时间计算，尚未启用出生地历史时区与真太阳时校正。</p>
+            <div class="error" id="z-error"></div>
+          </form>
+
+          <form id="qimen-form" hidden>
+            <h2>时家奇门起局</h2>
+            <label for="q-date">问事 / 起局日期</label><input id="q-date" type="date" min="1900-01-01" max="2099-12-31" required />
+            <label for="q-time">问事 / 起局时间</label><input id="q-time" type="time" required />
+            <label class="consent"><input id="q-consent" type="checkbox" required /><span>我已满 18 岁，同意本次处理起局时间。盘面仅作文化研究。</span></label>
+            <button class="submit" type="submit">生成时家奇门盘 →</button>
+            <p class="note">当前锁定“茅山派转盘法”。拆补、置闰等方法存在差异，本版不静默混用。</p>
+            <div class="error" id="q-error"></div>
+          </form>
+        </section>
+
+        <section class="card output" id="output">
+          <div class="empty" id="empty"><div><div style="font-size:70px;color:#9f7a3e">☯</div><p>填写左侧资料后，这里显示确定性盘面与计算边界。</p></div></div>
+          <div id="result" hidden></div>
+        </section>
+      </main>
+    </div>
+    <script>
+      const tabs = [...document.querySelectorAll('.tab')];
+      const zForm = document.getElementById('ziwei-form');
+      const qForm = document.getElementById('qimen-form');
+      const empty = document.getElementById('empty');
+      const result = document.getElementById('result');
+      const qOrder = [4,9,2,3,5,7,8,1,6];
+
+      function activate(system) {
+        const current = system === 'qimen' ? 'qimen' : 'ziwei';
+        tabs.forEach(tab => tab.classList.toggle('active', tab.dataset.system === current));
+        zForm.hidden = current !== 'ziwei'; qForm.hidden = current !== 'qimen';
+        empty.hidden = false; result.hidden = true; result.replaceChildren();
+        history.replaceState(null, '', '#' + current);
+      }
+      tabs.forEach(tab => tab.addEventListener('click', () => activate(tab.dataset.system)));
+      activate(location.hash.slice(1));
+
+      zForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        await submit('/api/ziwei', {
+          date: document.getElementById('z-date').value,
+          time: document.getElementById('z-time').value,
+          gender: document.getElementById('z-gender').value,
+          consent: document.getElementById('z-consent').checked,
+        }, renderZiwei, document.getElementById('z-error'));
+      });
+      qForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        await submit('/api/qimen', {
+          date: document.getElementById('q-date').value,
+          time: document.getElementById('q-time').value,
+          consent: document.getElementById('q-consent').checked,
+        }, renderQimen, document.getElementById('q-error'));
+      });
+
+      async function submit(url, body, render, errorBox) {
+        errorBox.textContent = '';
+        try {
+          const response = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.error || '生成失败');
+          empty.hidden = true; result.hidden = false; render(payload);
+        } catch (error) { errorBox.textContent = error.message; }
+      }
+
+      function renderZiwei(payload) {
+        const chart = payload.chart;
+        const summary = el('div','summary');
+        [chart.lunarDate, chart.timeLabel, `命主 ${chart.soul}`, `身主 ${chart.body}`, chart.fiveElementsClass].forEach(text => summary.append(el('span','pill',text)));
+        const grid = el('div','palace-grid');
+        chart.palaces.forEach(palace => {
+          const card = el('article','palace' + (palace.name === '命宫' ? ' soul' : ''));
+          const title = el('h3'); title.append(el('span','',palace.name), el('span','',palace.heavenlyStem + palace.earthlyBranch)); card.append(title);
+          card.append(el('p','', '主星：' + (palace.majorStars.map(starText).join('、') || '无主星')));
+          card.append(el('p','', '辅星：' + (palace.minorStars.map(starText).join('、') || '—')));
+          if (palace.isBodyPalace) card.append(el('p','', '◎ 身宫同宫'));
+          grid.append(card);
+        });
+        result.replaceChildren(summary, grid, reportDetails(payload.report));
+      }
+
+      function renderQimen(payload) {
+        const chart = payload.chart;
+        const summary = el('div','summary');
+        [chart.juShu.jieQiName, chart.juShu.fullName, `值符 ${chart.zhiFu.star}`, `值使 ${chart.zhiShi.door}`].forEach(text => summary.append(el('span','pill',text)));
+        const grid = el('div','qimen-grid');
+        qOrder.map(number => chart.palaces.find(p => p.number === number)).forEach(palace => {
+          const card = el('article','palace' + ((String(palace.number) === chart.zhiFu.palace || String(palace.number) === chart.zhiShi.palace) ? ' key' : ''));
+          const title = el('h3'); title.append(el('span','',palace.name + palace.number + '宫'), el('span','',palace.direction)); card.append(title);
+          card.append(el('p','',`天盘 ${palace.heavenStem || '—'}　地盘 ${palace.earthStem || '—'}　暗干 ${palace.hiddenStem || '—'}`));
+          card.append(el('p','',`${palace.star || '—'} · ${palace.door || '—'} · ${palace.deity || '—'}`));
+          if (palace.isEmpty || palace.isHorse) card.append(el('p','',(palace.isEmpty ? '空亡 ' : '') + (palace.isHorse ? '驿马' : '')));
+          grid.append(card);
+        });
+        result.replaceChildren(summary, grid, reportDetails(payload.report));
+      }
+
+      function starText(star) { return star.name + (star.brightness ? `〔${star.brightness}〕` : '') + (star.mutagen ? `·化${star.mutagen}` : ''); }
+      function reportDetails(text) { const box = document.createElement('details'); const summary = document.createElement('summary'); summary.textContent='查看完整结构报告与算法边界'; const pre=document.createElement('pre'); pre.textContent=text; box.append(summary,pre); return box; }
+      function el(tag, className='', text='') { const node=document.createElement(tag); if(className) node.className=className; if(text) node.textContent=text; return node; }
+    </script>
+  </body>
+</html>

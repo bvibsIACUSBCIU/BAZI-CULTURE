@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.bazi.example/schemas/golden-corpus.schema.json",
+  "title": "Bazi Golden Test Corpus",
+  "type": "object",
+  "required": ["corpusVersion", "cases"],
+  "properties": {
+    "corpusVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "category",
+          "evidenceLevel",
+          "reviewState",
+          "input",
+          "expected",
+          "provenance"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^GOLDEN-[A-Z]+-\\d{3}$"
+          },
+          "category": {
+            "enum": [
+              "four-pillars",
+              "solar-term-boundary",
+              "day-boundary",
+              "input-policy",
+              "future-capability"
+            ]
+          },
+          "evidenceLevel": {
+            "enum": [
+              "external-anchor",
+              "regression-snapshot",
+              "official-boundary",
+              "product-policy"
+            ]
+          },
+          "reviewState": {
+            "enum": ["approved", "provisional", "quarantined"]
+          },
+          "input": {
+            "type": "object"
+          },
+          "expected": {
+            "type": "object"
+          },
+          "provenance": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["sourceId", "locator"],
+              "properties": {
+                "sourceId": { "type": "string" },
+                "locator": { "type": "string" },
+                "version": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+

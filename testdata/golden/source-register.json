@@ -1,0 +1,79 @@
+{
+  "registerVersion": "1.0.0",
+  "sources": [
+    {
+      "sourceId": "GB-T-33661-2017",
+      "title": "GB/T 33661-2017 农历的编算和颁行",
+      "authority": "国家标准化管理委员会；主管、归口：中国科学院",
+      "url": "https://openstd.samr.gov.cn/bzgk/std/newGbInfo?hcno=E107EA4DE9725EDF819F33C60A44B296",
+      "role": "calendar-authority",
+      "reviewState": "verified"
+    },
+    {
+      "sourceId": "PMO-ALMANAC",
+      "title": "中国科学院紫金山天文台历书",
+      "authority": "中国科学院紫金山天文台",
+      "url": "https://www.pmo.cas.cn/xwdt2019/kpdt2019/202203/t20220309_6386774.html",
+      "role": "solar-term-cross-check",
+      "reviewState": "verified"
+    },
+    {
+      "sourceId": "IANA-TZDB",
+      "title": "IANA Time Zone Database",
+      "authority": "Internet Assigned Numbers Authority",
+      "url": "https://www.iana.org/time-zones",
+      "role": "historical-timezone",
+      "reviewState": "verified"
+    },
+    {
+      "sourceId": "LUNAR-JS-UPSTREAM-EIGHTCHAR",
+      "title": "lunar-javascript upstream EightChar tests",
+      "authority": "6tail/lunar-javascript",
+      "localLocator": "node_modules/lunar-javascript/__tests__/EightChar.test.js",
+      "role": "secondary-regression-anchor",
+      "version": "1.7.7",
+      "reviewState": "verified-local"
+    },
+    {
+      "sourceId": "LUNAR-JS-JIEQI-TABLE",
+      "title": "lunar-javascript JieQi table",
+      "authority": "6tail/lunar-javascript",
+      "localLocator": "node_modules/lunar-javascript/__tests__/JieQi.test.js",
+      "role": "secondary-solar-term-snapshot",
+      "version": "1.7.7",
+      "reviewState": "verified-local"
+    },
+    {
+      "sourceId": "LOCAL-LUNAR-JS-SNAPSHOT",
+      "title": "Project regression snapshot generated with pinned lunar-javascript",
+      "authority": "bazi-culture-mvp",
+      "localLocator": "testdata/golden/chart-cases.json",
+      "role": "change-detection-only",
+      "version": "1.7.7",
+      "reviewState": "provisional"
+    },
+    {
+      "sourceId": "GREGORIAN-CALENDAR",
+      "title": "Proleptic Gregorian input validation",
+      "authority": "ECMAScript Date UTC validation used by product",
+      "role": "input-validation",
+      "reviewState": "product-policy"
+    },
+    {
+      "sourceId": "ISO-LOCAL-TIME",
+      "title": "Product HH:mm local-time input contract",
+      "authority": "bazi-culture-mvp",
+      "role": "input-validation",
+      "reviewState": "product-policy"
+    },
+    {
+      "sourceId": "MVP-SCOPE",
+      "title": "Bazi Culture MVP scope and calculation policy",
+      "authority": "bazi-culture-mvp",
+      "localLocator": "docs/rebuild/05-mvp-scope.md",
+      "role": "product-policy",
+      "reviewState": "approved"
+    }
+  ]
+}
+
