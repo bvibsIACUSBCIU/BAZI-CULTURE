@@ -154,6 +154,52 @@ test("AI retries once when the first structured response fails validation", asyn
 
   assert.equal(calls, 2);
   assert.equal(result.reading.topic, "career");
+  assert.equal(result.modelFallback.active, true);
+  assert.equal(result.modelFallback.to, "gpt-4o-mini");
+});
+
+test("primary model timeout switches to the AI fallback model", async () => {
+  const chart = await calculateBazi(
+    { date: "1990-01-01", time: "12:00" },
+    { calendarAdapter: FIXED_CALENDAR },
+  );
+  let calls = 0;
+  const reading = readingFixture("wealth");
+  const result = await generateAiReading({
+    chart,
+    topic: "wealth",
+    apiKey: "test-key",
+    model: "gpt-5.5",
+    fallbackModel: "gpt-4o-mini",
+    fetchImpl: async () => {
+      calls += 1;
+      if (calls === 1) {
+        const error = new Error("timed out");
+        error.name = "TimeoutError";
+        throw error;
+      }
+      return {
+        ok: true,
+        async json() {
+          return {
+            output: [
+              {
+                content: [
+                  { type: "output_text", text: JSON.stringify(reading) },
+                ],
+              },
+            ],
+          };
+        },
+      };
+    },
+  });
+
+  assert.equal(calls, 2);
+  assert.equal(result.model, "gpt-4o-mini");
+  assert.equal(result.modelFallback.active, true);
+  assert.equal(result.modelFallback.reason, "AI_TIMEOUT");
+  assert.equal(result.reading.topic, "wealth");
 });
 
 function readingFixture(topic, overrides = {}) {

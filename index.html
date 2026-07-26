@@ -2099,6 +2099,8 @@
         document.getElementById("ai-provenance").textContent =
           agent?.fallback?.active
             ? "程序计算 · AI 本轮未完成 · 已返回安全结构版"
+            : agent?.modelFallback?.active
+              ? "程序计算 · 主模型响应异常 · AI 备用模型完成解读"
             : "程序计算 · " +
               (agent?.knowledge?.ruleCodes?.length
                 ? "已审核规则 " + agent.knowledge.ruleCodes.join("、")
