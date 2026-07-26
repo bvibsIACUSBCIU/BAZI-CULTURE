@@ -107,6 +107,9 @@ test("generated chart offers AI interpretation and sends constrained reading", a
   await callback(handler, 805, "ai:reading");
   assert.match(sent.at(-1).body.text, /AI 测试解读：辛/);
 
+  await callback(handler, 805, "ai:career");
+  assert.match(sent.at(-1).body.text, /AI 测试解读：辛/);
+
   await callback(handler, 805, "ai:ask");
   await message(handler, 805, "日主是什么意思？");
   assert.match(sent.at(-1).body.text, /日主是什么意思/);

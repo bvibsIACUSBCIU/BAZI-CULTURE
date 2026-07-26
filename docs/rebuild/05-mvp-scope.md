@@ -17,7 +17,9 @@ what may be tested internally.
 - optional civil birth time;
 - `Asia/Shanghai` (`UTC+8`) only.
 
-Birthplace, name, gender, phone number, and account profile are not collected.
+An optional birthplace label may be supplied for display, but it is not used in
+the current calculation. Name, gender, phone number, and account profile are
+not collected.
 
 ## Calculation Policy
 
@@ -26,8 +28,12 @@ Birthplace, name, gender, phone number, and account profile are not collected.
 - 23:00-00:59 is blocked until the day-boundary method is reviewed;
 - unknown time produces no hour pillar;
 - the five-element display counts surface stems and principal branch elements;
-- hidden stems, weights, strength, structure, useful gods, luck cycles, and
-  annual predictions are outside this MVP.
+- the conventional hidden-stem table and supported stem/branch relationships
+  are exposed as deterministic structural facts;
+- hidden-stem weights, strength, pattern, useful gods, luck cycles, and annual
+  predictions remain outside the current calculation;
+- structure presence never implies transformation, strength, auspiciousness,
+  or an event without a separately approved rule card.
 
 ## Knowledge Policy
 
@@ -40,9 +46,12 @@ The MVP may display:
 - calculation assumptions;
 - source status and limitations;
 - neutral feedback questions.
+- a bounded career, wealth, or relationship topic report that cites calculated
+  fact codes and explicitly lists counterpoints.
 
 It must not display a personalized traditional inference until the underlying
-rule card is collated and human-reviewed.
+rule card is collated and human-reviewed. The implementation/review boundary is
+recorded in `knowledge/rules/topic-review-matrix.json`.
 
 ## Interfaces
 

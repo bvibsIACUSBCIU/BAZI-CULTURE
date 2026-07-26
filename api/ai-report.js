@@ -15,6 +15,7 @@ import { ToolRegistry } from "../lib/agent/tool-registry.js";
 import { createBaziTools } from "../lib/agent/tools/bazi-tools.js";
 import { createKnowledgeTools } from "../lib/agent/tools/knowledge-tools.js";
 import { AGENT_LIMITS } from "../lib/agent/agent-policy.js";
+import { normalizeBaziTopic } from "../lib/metaphysics/bazi-topics.js";
 
 export function createAiReportHandler(options = {}) {
   const calculate = options.calculate || calculateBazi;
@@ -82,10 +83,17 @@ export function createAiReportHandler(options = {}) {
         time: request.body?.time,
         timeKnown: request.body?.timeKnown,
       });
+      const topic = normalizeBaziTopic(request.body?.topic);
       const result = await agentRuntime.run({
         session: { chart, aiText: request.body?.previousReading || null },
         userText: request.body?.question || "",
-        mode: request.body?.question ? "question" : "reading",
+        mode:
+          request.body?.question
+            ? "question"
+            : topic === "overview"
+              ? "reading"
+              : "topic",
+        topic,
       });
       response.status(200).json({
         ok: true,

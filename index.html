@@ -912,6 +912,25 @@
         font-size: 9px;
       }
 
+      .evidence-lines {
+        margin: 10px 0 0;
+        padding-left: 16px;
+        color: #879096;
+        font-size: 9px;
+        line-height: 1.65;
+      }
+
+      .evidence-lines.limit {
+        color: #9a806f;
+      }
+
+      .topic-meta {
+        margin: 0 0 12px;
+        color: #b99c68;
+        font-size: 10px;
+        letter-spacing: 0.08em;
+      }
+
       .provenance {
         margin: -8px 0 18px;
         color: #7e878d;
@@ -1567,7 +1586,7 @@
               <small>DETERMINISTIC · CALCULATED</small>
               <h2>基础四柱 <span class="sample-badge" id="sample-badge" hidden>示例数据</span></h2>
             </div>
-            <p>程序仅计算四柱、日主和表层五行。尚未计算藏干、十神、旺衰、格局、用神、大运或流年。</p>
+              <p>程序计算四柱、透干与藏干十神及干支结构；旺衰、格局、用神、大运和流年仍在审核开发中。</p>
           </div>
 
           <div class="result-layout">
@@ -1599,8 +1618,8 @@
                 <strong>你想从哪里开始？</strong>
                 <div class="intent-grid">
                   <button class="intent-card" id="ai-generate" type="button">
-                    看懂基础命盘
-                    <small>生成一份中性的首次文化解读</small>
+                    原局总览
+                    <small>逐柱查看透干、藏干十神与干支关系</small>
                   </button>
                   <button
                     class="intent-card"
@@ -1609,6 +1628,18 @@
                   >
                     解释日主与五行
                     <small>只说明分类概念，不判断缺什么或喜忌</small>
+                  </button>
+                  <button class="intent-card topic-button" data-topic="career" type="button">
+                    事业研读
+                    <small>工作方式、责任结构与能力输出</small>
+                  </button>
+                  <button class="intent-card topic-button" data-topic="wealth" type="button">
+                    财富研读
+                    <small>资源获取、管理与合作边界</small>
+                  </button>
+                  <button class="intent-card topic-button" data-topic="relationship" type="button">
+                    情感研读
+                    <small>日支结构、沟通需求与关系边界</small>
                   </button>
                   <button class="intent-card" id="custom-question" type="button">
                     我有具体问题
@@ -1626,6 +1657,7 @@
               <div class="error" id="ai-error" role="alert"></div>
 
               <div class="ai-output" id="ai-output" hidden>
+                <p class="topic-meta" id="topic-meta"></p>
                 <p class="ai-summary" id="ai-summary"></p>
                 <div class="ai-sections" id="ai-sections"></div>
                 <div class="reflection">
@@ -1713,9 +1745,11 @@
       const aiButton = document.getElementById("ai-generate");
       const explainElementsButton = document.getElementById("explain-elements");
       const customQuestionButton = document.getElementById("custom-question");
+      const topicButtons = [...document.querySelectorAll("[data-topic]")];
       const aiError = document.getElementById("ai-error");
       const aiOutput = document.getElementById("ai-output");
       const aiSummary = document.getElementById("ai-summary");
+      const topicMeta = document.getElementById("topic-meta");
       const aiSections = document.getElementById("ai-sections");
       const reflectionList = document.getElementById("reflection-list");
       const aiLimit = document.getElementById("ai-limit");
@@ -1749,6 +1783,7 @@
       let previousReading = "";
       let pendingInput = null;
       let currentIsDemo = false;
+      let currentTopic = "overview";
 
       unknownInput.addEventListener("change", () => {
         timeInput.disabled = unknownInput.checked;
@@ -1798,11 +1833,15 @@
         await generateChart(demoInput, true);
       });
 
-      aiButton.addEventListener("click", () => generateAi(""));
+      aiButton.addEventListener("click", () => generateAi("", "overview"));
 
       explainElementsButton.addEventListener("click", () =>
-        generateAi("请只解释当前命盘中的日主与表层五行分别是什么意思，以及这些计数不能直接推出什么结论。"),
+        generateAi("请只解释当前命盘中的日主与表层五行分别是什么意思，以及这些计数不能直接推出什么结论。", "overview"),
       );
+
+      topicButtons.forEach((button) => {
+        button.addEventListener("click", () => generateAi("", button.dataset.topic));
+      });
 
       customQuestionButton.addEventListener("click", () => {
         questionArea.hidden = false;
@@ -1812,7 +1851,7 @@
 
       questionForm.addEventListener("submit", async (event) => {
         event.preventDefault();
-        await generateAi(questionInput.value);
+        await generateAi(questionInput.value, currentTopic);
       });
 
       document.querySelectorAll(".chip").forEach((chip) => {
@@ -1857,6 +1896,7 @@
           const payload = await postJson("/api/report", currentInput);
           renderChart(payload);
           previousReading = "";
+          currentTopic = "overview";
           aiOutput.hidden = true;
           questionArea.hidden = true;
           feedbackPanel.hidden = true;
@@ -1879,8 +1919,9 @@
         }
       }
 
-      async function generateAi(question) {
+      async function generateAi(question, topic = currentTopic) {
         if (!currentInput) return;
+        currentTopic = topic || "overview";
         setError(aiError, "");
         const isQuestion = Boolean(String(question).trim());
         setAiLoading(true);
@@ -1892,6 +1933,7 @@
             ...currentInput,
             question: String(question || "").trim(),
             previousReading,
+            topic: currentTopic,
           });
           previousReading = payload.ai.text;
           renderAi(payload.ai.reading, payload.ai.agent);
@@ -1902,7 +1944,7 @@
           feedbackStatus.textContent = "";
           questionInput.value = "";
           trackEvent("ai_generated", {
-            choice: isQuestion ? "question" : "overview",
+            choice: isQuestion ? "question" : currentTopic,
             demo: currentIsDemo,
           });
         } catch (error) {
@@ -1968,8 +2010,11 @@
             ? `出生地“${payload.context.birthplace}”仅作显示，未参与当前计算。`
             : "未提供出生地；当前仍统一采用 UTC+8。",
           payload.chart.tenGods
-            ? "已由程序计算可见天干十神；藏干与地支内部十神尚未启用。"
-            : "可见天干十神尚未返回。",
+            ? "已由程序计算透干与固定藏干十神；藏干不参与当前五行数量和力量判断。"
+            : "十神结构尚未返回。",
+          payload.chart.relations
+            ? "已记录天干五合/相克与地支合冲刑害破等结构；不自动判断合化和吉凶。"
+            : "干支关系结构尚未返回。",
           "旺衰、格局、用神、大运和流年均未计算。",
         ];
         calculationNoticeList.replaceChildren(
@@ -1989,6 +2034,16 @@
           general_explanation: "基础概念",
           boundary: "边界说明",
         };
+        const topicLabels = {
+          overview: "原局总览",
+          career: "事业研读",
+          wealth: "财富研读",
+          relationship: "情感研读",
+        };
+        topicMeta.textContent =
+          (topicLabels[reading.topic] || "原局总览") +
+          " · 证据完整度：" +
+          (reading.confidence === "moderate" ? "中等" : "有限");
         aiSummary.textContent = reading.summary;
         aiSections.replaceChildren(
           ...reading.sections.map((section) => {
@@ -1998,15 +2053,38 @@
             const body = document.createElement("p");
             const basis = document.createElement("span");
             const refs = document.createElement("div");
+            const facts = document.createElement("ul");
+            const counterpoints = document.createElement("ul");
             basis.className = "basis";
             basis.textContent = basisLabels[section.basis] || "依据未标记";
             title.textContent = section.title;
             body.textContent = section.body;
             refs.className = "source-refs";
-            refs.textContent = section.sourceRefs?.length
-              ? "依据：" + section.sourceRefs.join(" · ")
-              : "未引用古籍规则";
-            item.append(basis, title, body, refs);
+            refs.textContent = [
+              section.factRefs?.length
+                ? "事实编号：" + section.factRefs.join(" · ")
+                : "事实编号缺失",
+              section.sourceRefs?.length
+                ? "规则：" + section.sourceRefs.join(" · ")
+                : "未引用古籍规则",
+            ].join("｜");
+            facts.className = "evidence-lines";
+            facts.replaceChildren(
+              ...(section.supportingFacts || []).map((text) => {
+                const entry = document.createElement("li");
+                entry.textContent = "结构依据：" + text;
+                return entry;
+              }),
+            );
+            counterpoints.className = "evidence-lines limit";
+            counterpoints.replaceChildren(
+              ...(section.counterpoints || []).map((text) => {
+                const entry = document.createElement("li");
+                entry.textContent = "限制/反证：" + text;
+                return entry;
+              }),
+            );
+            item.append(basis, title, body, facts, counterpoints, refs);
             return item;
           }),
         );
@@ -2049,6 +2127,9 @@
         aiButton.disabled = loading;
         explainElementsButton.disabled = loading;
         customQuestionButton.disabled = loading;
+        topicButtons.forEach((button) => {
+          button.disabled = loading;
+        });
         askButton.disabled = loading;
       }
 
@@ -2062,6 +2143,7 @@
         previousReading = "";
         pendingInput = null;
         currentIsDemo = false;
+        currentTopic = "overview";
         experience.hidden = true;
         sampleBadge.hidden = true;
         aiOutput.hidden = true;

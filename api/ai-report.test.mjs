@@ -28,20 +28,28 @@ const CHART = {
 };
 
 const READING = {
+  topic: "overview",
   title: "命盘结构初读",
   summary: "这是一份基于确定性四柱结果的中性说明，重点在于理解结构和核对边界。",
+  confidence: "limited",
   sections: [
     {
       title: "日主符号",
       body: "辛金是传统五行分类中的一个符号，可用于组织观察，但不能单独推出性格或命运。",
       basis: "general_explanation",
       sourceRefs: [],
+      factRefs: ["DAY_MASTER"],
+      supportingFacts: ["日主为辛金"],
+      counterpoints: ["未计算旺衰，不能判断辛金强弱"],
     },
     {
       title: "表层结构",
       body: "当前计数只覆盖四柱表层字符，不包括藏干、旺衰、格局、用神、大运和流年。",
       basis: "calculated",
       sourceRefs: [],
+      factRefs: ["STRUCTURAL_RELATIONS"],
+      supportingFacts: ["当前表层五行总数为八个字符"],
+      counterpoints: ["表层计数不包含藏干权重"],
     },
   ],
   reflectionQuestions: ["你认为哪些描述与自己的实际经验相符，哪些并不相符？"],

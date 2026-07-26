@@ -38,6 +38,16 @@
       "type": "string",
       "minLength": 1
     },
+    "topic": {
+      "enum": [
+        "foundation",
+        "career",
+        "wealth",
+        "relationship",
+        "timing",
+        "safety"
+      ]
+    },
     "plain_language_claim": {
       "type": "string",
       "minLength": 1
@@ -93,6 +103,31 @@
       "type": "array",
       "items": { "type": "string" },
       "minItems": 1
+    },
+    "supporting_conditions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "counter_conditions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "confidence_method": {
+      "type": "string"
+    },
+    "timing_scope": {
+      "enum": ["natal_only", "luck_cycle", "annual", "not_applicable"]
+    },
+    "gender_assumption": {
+      "enum": [
+        "gender_neutral",
+        "traditional_male_rule",
+        "traditional_female_rule",
+        "not_applicable"
+      ]
+    },
+    "user_facing_template": {
+      "type": "string"
     },
     "confidence": {
       "enum": ["low", "medium", "high"]

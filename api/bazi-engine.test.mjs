@@ -4,10 +4,13 @@ import { test } from "node:test";
 import {
   BaziInputError,
   calculateBazi,
+  calculateChartRelations,
+  calculateHiddenStemTenGods,
   calculateTenGod,
   countSurfaceElements,
   normalizeBirthInput,
 } from "../lib/metaphysics/bazi-engine.js";
+import { buildBaziTopicAnalysis } from "../lib/metaphysics/bazi-topics.js";
 import { buildBaziReport } from "../lib/metaphysics/bazi-report.js";
 
 const FIXED_CALENDAR = async (input) => ({
@@ -89,6 +92,26 @@ test("calculates transparent surface element counts from the four pillars", asyn
     name: "正财",
   });
   assert.equal(chart.tenGods.details.time.relation, "我生");
+  assert.deepEqual(
+    chart.tenGods.branches.year.stems.map((item) => [
+      item.stem,
+      item.name,
+      item.role,
+    ]),
+    [
+      ["甲", "伤官", "本气"],
+      ["丙", "正财", "中气"],
+      ["戊", "正官", "余气"],
+    ],
+  );
+  assert.ok(
+    chart.relations.branches.some(
+      (item) =>
+        item.type === "冲" &&
+        item.positions.includes("day") &&
+        item.positions.includes("time"),
+    ),
+  );
 });
 
 test("maps all ten-god categories deterministically from the day stem", () => {
@@ -98,6 +121,61 @@ test("maps all ten-god categories deterministically from the day stem", () => {
     ),
     ["比肩", "劫财", "食神", "伤官", "偏财", "正财", "七杀", "正官", "偏印", "正印"],
   );
+});
+
+test("hidden stems and chart relations are deterministic structural facts", () => {
+  const pillars = {
+    year: "甲子",
+    month: "己丑",
+    day: "丙午",
+    time: "辛未",
+  };
+  const hidden = calculateHiddenStemTenGods(pillars, "丙");
+  const relations = calculateChartRelations(pillars);
+
+  assert.deepEqual(
+    hidden.month.stems.map((item) => item.stem),
+    ["己", "癸", "辛"],
+  );
+  assert.ok(
+    relations.stems.some(
+      (item) => item.type === "五合" && item.symbols === "甲己",
+    ),
+  );
+  assert.ok(
+    relations.branches.some(
+      (item) => item.type === "冲" && item.symbols === "子午",
+    ),
+  );
+  assert.ok(
+    relations.branches.some(
+      (item) => item.type === "六合" && item.symbols === "子丑",
+    ),
+  );
+});
+
+test("topic facts separate calculated evidence from unsupported inference", async () => {
+  const chart = await calculateBazi(
+    { date: "1986-05-29", time: "05:30" },
+    { calendarAdapter: FIXED_CALENDAR },
+  );
+  const career = buildBaziTopicAnalysis(chart, "career");
+  const relationship = buildBaziTopicAnalysis(chart, "relationship");
+
+  assert.equal(career.topic, "career");
+  assert.match(
+    career.facts.find((item) => item.code === "TOPIC_TEN_GODS").value,
+    /正官|正印|食神|伤官/,
+  );
+  assert.equal(relationship.topic, "relationship");
+  assert.match(
+    relationship.facts.find((item) => item.code === "SPOUSE_PALACE").value,
+    /酉/,
+  );
+  assert.ok(
+    relationship.limitations.some((item) => item.includes("性别中立")),
+  );
+  assert.match(relationship.inferencePolicy, /不等同于.*事件/);
 });
 
 test("pinned lunar-javascript calculates the known 1986-05-29 fixture", async () => {
@@ -125,8 +203,8 @@ test("fixed report separates calculated facts from source limits", async () => {
   assert.match(report, /自我核对 REFLECTION/);
   assert.match(report, /天干十神：正财（我克 · 异阴阳）/);
   assert.match(report, /BZ-TENGOD-0001/);
-  assert.match(report, /藏干尚未完成全表证据审核/);
-  assert.match(report, /未完成人工复核/);
+  assert.match(report, /藏干与干支关系作为结构事实展示/);
+  assert.match(report, /已审核规则组合使用/);
   assert.match(report, /不用于医疗、投资、法律、婚育/);
   assert.doesNotMatch(report, /保证发财|必定结婚|转运水晶|邀请好友/);
 });

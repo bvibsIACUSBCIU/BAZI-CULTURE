@@ -1,0 +1,49 @@
+{
+  "version": "topic-review-matrix-v1",
+  "updated_at": "2026-07-26",
+  "policy": "implemented does not mean approved for interpretation",
+  "capabilities": [
+    {
+      "capability": "hidden_stem_mapping",
+      "implementation": "deterministic_v0.3",
+      "production_interpretation": "calculated_structure_only",
+      "review_status": "pending_passage_level_source_approval"
+    },
+    {
+      "capability": "stem_and_branch_relations",
+      "implementation": "deterministic_v0.3",
+      "production_interpretation": "calculated_structure_only",
+      "review_status": "pending_passage_level_source_approval"
+    },
+    {
+      "capability": "career_topic",
+      "implementation": "topic_facts_v1",
+      "production_interpretation": "approved_rules_only",
+      "review_status": "needs_career_rule_batch"
+    },
+    {
+      "capability": "wealth_topic",
+      "implementation": "topic_facts_v1",
+      "production_interpretation": "approved_rules_only",
+      "review_status": "needs_wealth_rule_batch"
+    },
+    {
+      "capability": "relationship_topic",
+      "implementation": "topic_facts_v1_gender_neutral",
+      "production_interpretation": "approved_rules_only",
+      "review_status": "needs_relationship_rule_batch"
+    },
+    {
+      "capability": "strength_pattern_useful_god",
+      "implementation": "not_started",
+      "production_interpretation": "blocked",
+      "review_status": "method_and_conflict_review_required"
+    },
+    {
+      "capability": "luck_cycles_and_annual_timing",
+      "implementation": "not_started",
+      "production_interpretation": "blocked",
+      "review_status": "algorithm_source_and_boundary_tests_required"
+    }
+  ]
+}

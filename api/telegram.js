@@ -328,6 +328,27 @@ async function handleCallback(
       agentRuntime,
       sessionStore,
       aiLimiter,
+      "",
+      "overview",
+    );
+    return;
+  }
+  if (["ai:career", "ai:wealth", "ai:relationship"].includes(callback.data)) {
+    const session = await sessionStore.get("session", chatId);
+    if (!session?.chart) {
+      await sendMessage(send, chatId, "请先完成一次排盘。", mainKeyboard());
+      return;
+    }
+    const topic = callback.data.slice(3);
+    await generateAndSendAi(
+      chatId,
+      session,
+      send,
+      agentRuntime,
+      sessionStore,
+      aiLimiter,
+      "",
+      topic,
     );
     return;
   }
@@ -462,6 +483,7 @@ async function generateAndSendAi(
   sessionStore,
   aiLimiter,
   question = "",
+  topic = "overview",
 ) {
   try {
     await aiLimiter.consume(chatId);
@@ -471,16 +493,18 @@ async function generateAndSendAi(
       session,
       userText: question,
       mode: question ? "question" : "reading",
+      topic,
     });
     await sessionStore.set("session", chatId, {
       ...session,
       step: null,
       aiText: result.text,
+      aiTopic: topic,
     });
-    await sendMessage(send, chatId, result.text, aiKeyboard());
+    await sendMessage(send, chatId, result.text, aiKeyboard(topic));
   } catch (error) {
     if (error instanceof RateLimitError) {
-      await sendMessage(send, chatId, error.message, aiKeyboard());
+      await sendMessage(send, chatId, error.message, aiKeyboard(topic));
       return;
     }
     console.error("AI Telegram response failed:", error.code || error.message);
@@ -513,6 +537,7 @@ async function handleAiQuestion(
     sessionStore,
     aiLimiter,
     text,
+    session.aiTopic || "overview",
   );
 }
 
@@ -554,6 +579,11 @@ function chartKeyboard() {
     inline_keyboard: [
       [{ text: "✨ 生成 AI 文化解读", callback_data: "ai:reading" }],
       [
+        { text: "事业研读", callback_data: "ai:career" },
+        { text: "财富研读", callback_data: "ai:wealth" },
+      ],
+      [{ text: "情感研读", callback_data: "ai:relationship" }],
+      [
         { text: "继续问这份命盘", callback_data: "ai:ask" },
         { text: "重新排盘", callback_data: "flow:new" },
       ],
@@ -562,12 +592,20 @@ function chartKeyboard() {
   };
 }
 
-function aiKeyboard() {
+function aiKeyboard(topic = "overview") {
+  const regenerateCallback =
+    topic === "career"
+      ? "ai:career"
+      : topic === "wealth"
+        ? "ai:wealth"
+        : topic === "relationship"
+          ? "ai:relationship"
+          : "ai:reading";
   return {
     inline_keyboard: [
       [{ text: "💬 继续问这份命盘", callback_data: "ai:ask" }],
       [
-        { text: "重新生成解读", callback_data: "ai:reading" },
+        { text: "重新生成解读", callback_data: regenerateCallback },
         { text: "重新排盘", callback_data: "flow:new" },
       ],
     ],
