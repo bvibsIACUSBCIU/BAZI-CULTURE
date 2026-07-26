@@ -118,6 +118,44 @@ test("AI accepts a limited topic reading grounded in allowed fact codes", async 
   assert.match(result.text, /限制\/反证/);
 });
 
+test("AI retries once when the first structured response fails validation", async () => {
+  const chart = await calculateBazi(
+    { date: "1990-01-01", time: "12:00" },
+    { calendarAdapter: FIXED_CALENDAR },
+  );
+  let calls = 0;
+  const validReading = readingFixture("career");
+  const result = await generateAiReading({
+    chart,
+    topic: "career",
+    apiKey: "test-key",
+    fetchImpl: async () => {
+      calls += 1;
+      const reading =
+        calls === 1
+          ? readingFixture("career", { factRefs: ["INVENTED_FACT"] })
+          : validReading;
+      return {
+        ok: true,
+        async json() {
+          return {
+            output: [
+              {
+                content: [
+                  { type: "output_text", text: JSON.stringify(reading) },
+                ],
+              },
+            ],
+          };
+        },
+      };
+    },
+  });
+
+  assert.equal(calls, 2);
+  assert.equal(result.reading.topic, "career");
+});
+
 function readingFixture(topic, overrides = {}) {
   const sectionOverrides = {
     factRefs: ["DAY_MASTER"],

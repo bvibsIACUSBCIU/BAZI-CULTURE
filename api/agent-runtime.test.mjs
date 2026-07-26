@@ -89,3 +89,49 @@ test("explicit source questions use research-only retrieval", async () => {
   assert.equal(result.agent.research.researchOnly, true);
   assert.equal(generationInput.agentContext[1].output.passages[0].ref, "passage-1");
 });
+
+test("recoverable AI failures return a deterministic topic fallback", async () => {
+  const runtime = createAgentRuntime({
+    generate: async () => {
+      const error = new Error("provider timeout");
+      error.code = "AI_TIMEOUT";
+      throw error;
+    },
+  });
+
+  const result = await runtime.run({
+    chatId: 10,
+    session: SESSION,
+    userText: "",
+    mode: "topic",
+    topic: "career",
+  });
+
+  assert.equal(result.agent.fallback.active, true);
+  assert.equal(result.agent.fallback.reason, "AI_TIMEOUT");
+  assert.equal(result.reading.topic, "career");
+  assert.equal(result.reading.confidence, "limited");
+  assert.match(result.text, /结构版/);
+  assert.match(result.text, /AI 暂时未能完成/);
+});
+
+test("configuration and input failures do not silently fall back", async () => {
+  const runtime = createAgentRuntime({
+    generate: async () => {
+      const error = new Error("missing key");
+      error.code = "AI_NOT_CONFIGURED";
+      throw error;
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      runtime.run({
+        chatId: 10,
+        session: SESSION,
+        mode: "topic",
+        topic: "wealth",
+      }),
+    (error) => error.code === "AI_NOT_CONFIGURED",
+  );
+});
