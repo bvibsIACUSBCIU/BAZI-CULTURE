@@ -25,3 +25,15 @@ test("Bazi navigation links to independent system pages", async () => {
   assert.match(index, /href="\/qimen\.html"/u);
   assert.doesNotMatch(index, /systems\.html#/u);
 });
+
+test("public system pages keep research documentation out of the main UI", async () => {
+  const pages = await Promise.all(
+    ["index.html", "ziwei.html", "qimen.html"].map((name) =>
+      readFile(new URL(name, root), "utf8"),
+    ),
+  );
+
+  for (const page of pages) {
+    assert.doesNotMatch(page, /体系说明|方法边界|SYSTEM · ORIGIN/u);
+  }
+});
