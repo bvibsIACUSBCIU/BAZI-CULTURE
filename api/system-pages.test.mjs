@@ -51,3 +51,31 @@ test("system background copy is embedded without return-home navigation", async 
   assert.doesNotMatch(ziwei, /返回首页/u);
   assert.doesNotMatch(qimen, /返回首页/u);
 });
+
+test("all three systems share the same first-screen product skeleton", async () => {
+  const pages = await Promise.all(
+    ["index.html", "ziwei.html", "qimen.html"].map((name) =>
+      readFile(new URL(name, root), "utf8"),
+    ),
+  );
+  const requiredClasses = [
+    "layout",
+    "sidebar",
+    "brand",
+    "nav",
+    "main",
+    "hero",
+    "intro",
+    "tagline",
+    "system-copy",
+    "form-card",
+    "cosmos",
+    "status-dot",
+  ];
+
+  for (const page of pages) {
+    for (const className of requiredClasses) {
+      assert.match(page, new RegExp(`class="[^"]*\\b${className}\\b`));
+    }
+  }
+});

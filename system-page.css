@@ -62,29 +62,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 }
 
 .brand { display: flex; align-items: center; gap: 11px; color: var(--gold-light); text-decoration: none; }
-.brand-mark {
-  position: relative;
-  width: 42px;
-  height: 42px;
-  flex: 0 0 auto;
-  border: 1px solid var(--gold);
-  border-radius: 50%;
-  box-shadow: 0 0 16px rgba(211, 168, 94, .16);
-}
-.brand-mark::before {
-  position: absolute;
-  inset: 7px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--gold-dim);
-  border-radius: 50%;
-  color: var(--gold);
-  font: 18px/1 var(--serif);
-  content: "☯";
-}
+.brand-mark { width: 42px; height: 42px; flex: 0 0 auto; filter: drop-shadow(0 0 10px rgba(211, 168, 94, .25)); }
 .brand strong { display: block; font: 700 20px/1 var(--serif); letter-spacing: .16em; }
 .brand small { display: block; margin-top: 6px; color: #777e84; font-size: 8px; letter-spacing: .15em; }
-.nav { display: grid; gap: 10px; margin-top: 56px; }
+.nav { display: grid; gap: 10px; margin-top: 72px; }
 .nav a {
   display: flex;
   align-items: center;
@@ -120,10 +101,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
   display: grid;
   grid-template-columns: minmax(390px, .86fr) minmax(500px, 1.14fr);
   gap: clamp(28px, 5vw, 72px);
-  align-items: center;
+  align-items: start;
   margin: 0 auto;
 }
-.eyebrow { margin-bottom: 24px; color: #ad9a7a; font: 14px/1.5 var(--serif); letter-spacing: .2em; }
 h1 {
   margin: 0;
   color: #eee0cb;
@@ -200,7 +180,7 @@ select option { color: #111; background: #eee; }
 .privacy { text-align: center; }
 .error { min-height: 17px; color: #f0a095; }
 
-.cosmos { position: relative; min-height: 660px; display: grid; place-items: center; isolation: isolate; }
+.cosmos { position: relative; min-height: 680px; display: grid; place-items: center; margin-top: 62px; isolation: isolate; }
 .cosmos::before {
   position: absolute;
   inset: 13% 4%;
@@ -322,14 +302,13 @@ select option { color: #111; background: #eee; }
   .mobile-status { width: 7px; height: 7px; border-radius: 50%; background: #70ac67; box-shadow: 0 0 9px #70ac67; }
   .hero { min-height: auto; grid-template-columns: 1fr; gap: 12px; }
   .intro { max-width: 620px; margin: 0 auto; }
-  .cosmos { min-height: 570px; order: -1; }
+  .cosmos { min-height: 570px; margin-top: 0; order: -1; }
   .cosmos-copy { bottom: 12px; }
   .status-dot { display: none; }
 }
 
 @media (max-width: 620px) {
   .main { padding-inline: 14px; }
-  .eyebrow { margin-bottom: 12px; font-size: 11px; }
   h1 { font-size: 42px; }
   .tagline { margin: 12px 0 22px; font-size: 11px; }
   .cosmos { min-height: 440px; }
