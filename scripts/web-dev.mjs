@@ -42,10 +42,24 @@ const server = createServer(async (request, response) => {
     return;
   }
 
-  if (request.url === "/systems.html") {
-    const html = await readFile(path.join(rootDir, "systems.html"));
-    response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    response.end(html);
+  const staticPages = new Map([
+    ["/systems.html", "systems.html"],
+    ["/ziwei.html", "ziwei.html"],
+    ["/qimen.html", "qimen.html"],
+    ["/system-page.css", "system-page.css"],
+    ["/ziwei-page.js", "ziwei-page.js"],
+    ["/qimen-page.js", "qimen-page.js"],
+  ]);
+  if (staticPages.has(request.url)) {
+    const fileName = staticPages.get(request.url);
+    const body = await readFile(path.join(rootDir, fileName));
+    const contentType = fileName.endsWith(".css")
+      ? "text/css; charset=utf-8"
+      : fileName.endsWith(".js")
+        ? "text/javascript; charset=utf-8"
+        : "text/html; charset=utf-8";
+    response.writeHead(200, { "Content-Type": contentType });
+    response.end(body);
     return;
   }
 

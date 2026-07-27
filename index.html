@@ -1111,6 +1111,57 @@
         vertical-align: middle;
       }
 
+      .system-story {
+        width: min(1420px, 100%);
+        display: grid;
+        grid-template-columns: minmax(220px, 0.42fr) minmax(0, 1fr);
+        gap: clamp(24px, 5vw, 70px);
+        margin: 34px auto 0;
+        padding: 30px;
+        border: 1px solid rgba(211, 168, 94, 0.16);
+        border-radius: 17px;
+        background: rgba(13, 20, 29, 0.58);
+      }
+
+      .system-story small {
+        color: var(--gold);
+        font-size: 9px;
+        letter-spacing: 0.2em;
+      }
+
+      .system-story h2 {
+        margin: 8px 0 5px;
+        color: #eadcc8;
+        font: 28px/1.2 var(--serif);
+      }
+
+      .system-story em {
+        color: #7d858b;
+        font: 12px/1.5 var(--sans);
+      }
+
+      .system-story-copy p {
+        margin: 0;
+        color: #9aa1a6;
+        font-size: 12px;
+        line-height: 1.9;
+      }
+
+      .method-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 17px;
+      }
+
+      .method-chips span {
+        padding: 7px 10px;
+        border: 1px solid rgba(211, 168, 94, 0.2);
+        border-radius: 99px;
+        color: #bda77f;
+        font-size: 10px;
+      }
+
       .method-bar {
         width: min(1420px, 100%);
         margin: 20px auto 0;
@@ -1162,6 +1213,14 @@
 
         .result-layout {
           grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .system-story {
+          grid-template-columns: 1fr;
+          gap: 16px;
+          padding: 22px;
         }
       }
 
@@ -1395,8 +1454,8 @@
 
         <nav class="nav" aria-label="主导航">
           <a class="active" href="#home"><span class="nav-icon">◎</span>八字研读</a>
-          <a href="/systems.html#ziwei"><span class="nav-icon">✦</span>紫微斗数</a>
-          <a href="/systems.html#qimen"><span class="nav-icon">▦</span>奇门遁甲</a>
+          <a href="/ziwei.html"><span class="nav-icon">✦</span>紫微斗数</a>
+          <a href="/qimen.html"><span class="nav-icon">▦</span>奇门遁甲</a>
           <a href="#privacy"><span class="nav-icon">♢</span>隐私说明</a>
         </nav>
 
@@ -1701,6 +1760,27 @@
           </div>
         </section>
 
+        <section class="system-story" aria-labelledby="bazi-story-title">
+          <div>
+            <small>SYSTEM · ORIGIN</small>
+            <h2 id="bazi-story-title">子平八字</h2>
+            <em>Bazi · Four Pillars</em>
+          </div>
+          <div class="system-story-copy">
+            <p>
+              中国应用广泛的传统命理推演体系。其源流常追溯至唐代李虚中，
+              至宋代逐渐形成以出生日天干为核心、结合年、月、日、时四柱进行分析的子平体系。
+              它以干支历法、阴阳五行与十神关系构成高度抽象的时间模型，擅长呈现原局的宏观结构；
+              不同典籍、流派与换日口径仍需明确区分。
+            </p>
+            <div class="method-chips">
+              <span>历法程序确定性排盘</span>
+              <span>当前支持四柱、十神与干支关系</span>
+              <span>旺衰、格局、用神与运势仍未定版</span>
+            </div>
+          </div>
+        </section>
+
         <details class="method-bar" id="privacy">
           <summary>计算、AI 与隐私边界</summary>
           <p>
@@ -1714,8 +1794,8 @@
 
     <nav class="mobile-nav" aria-label="手机导航">
       <a href="#home"><span>◎</span>八字</a>
-      <a href="/systems.html#ziwei"><span>✦</span>紫微</a>
-      <a href="/systems.html#qimen"><span>▦</span>奇门</a>
+      <a href="/ziwei.html"><span>✦</span>紫微</a>
+      <a href="/qimen.html"><span>▦</span>奇门</a>
       <a href="#privacy"><span>♢</span>隐私</a>
     </nav>
 

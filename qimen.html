@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="两仪奇门遁甲：确定性时家奇门九宫结构研究测试版。" />
+    <meta name="theme-color" content="#080d13" />
+    <title>两仪 · 奇门遁甲</title>
+    <link rel="stylesheet" href="/system-page.css" />
+  </head>
+  <body>
+    <div class="stars" aria-hidden="true"></div>
+    <div class="layout">
+      <aside class="sidebar">
+        <a class="brand" href="/" aria-label="两仪首页">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <div><strong>两仪</strong><small>QIMEN DUNJIA</small></div>
+        </a>
+        <nav class="nav" aria-label="奇门遁甲导航">
+          <a href="/"><span class="nav-icon">⌂</span>返回首页</a>
+          <a class="active" href="#home"><span class="nav-icon">▦</span>奇门起局</a>
+          <a href="#system-story"><span class="nav-icon">冊</span>体系说明</a>
+          <a href="#boundary"><span class="nav-icon">♢</span>方法边界</a>
+        </nav>
+        <div class="side-foot">时家奇门测试版<br />九宫确定性起局</div>
+      </aside>
+
+      <main class="main">
+        <header class="mobile-top">
+          <a class="brand" href="/"><span class="brand-mark"></span><div><strong>两仪</strong><small>QIMEN DUNJIA</small></div></a>
+          <span class="mobile-status" aria-label="测试服务在线"></span>
+        </header>
+
+        <section class="hero" id="home">
+          <div class="intro">
+            <div class="eyebrow">时家奇门 · 结构研究测试版</div>
+            <h1>观其局，察其门</h1>
+            <div class="tagline">以九宫为盘，见门星神仪</div>
+            <form class="form-card" id="qimen-form">
+              <h2 class="card-title">▦　开始起局</h2>
+              <div class="field-grid">
+                <div class="field field--wide">
+                  <label for="q-date"><span>问事 / 起局日期</span><small>1900—2099</small></label>
+                  <div class="input-wrap"><input id="q-date" type="date" min="1900-01-01" max="2099-12-31" required /></div>
+                </div>
+                <div class="field field--wide">
+                  <label for="q-time"><span>问事 / 起局时间</span><small>时家奇门</small></label>
+                  <div class="input-wrap"><input id="q-time" type="time" required /></div>
+                </div>
+              </div>
+              <p class="boundary">当前锁定茅山派转盘法；拆补、置闰等方法存在差异，本版不静默混用。</p>
+              <label class="consent-row"><input id="q-consent" type="checkbox" required /><span>我已满 18 岁，并同意本次处理起局日期、时间及派生盘面。</span></label>
+              <button class="primary" type="submit">生成时家奇门盘　→</button>
+              <p class="privacy">♢ 盘面仅作传统文化研究 · 不用于重大人生决策</p>
+              <div class="error" id="q-error" role="alert"></div>
+            </form>
+          </div>
+
+          <div class="cosmos" aria-label="动态奇门九宫">
+            <div class="qimen-visual">
+              <div class="qimen-cell"><span>巽四</span></div><div class="qimen-cell"><span>离九</span></div><div class="qimen-cell"><span>坤二</span></div>
+              <div class="qimen-cell"><span>震三</span></div><div class="qimen-cell"><span>中五</span></div><div class="qimen-cell"><span>兑七</span></div>
+              <div class="qimen-cell"><span>艮八</span></div><div class="qimen-cell"><span>坎一</span></div><div class="qimen-cell"><span>乾六</span></div>
+            </div>
+            <div class="cosmos-copy"><strong>九宫定位 · 门星神仪</strong><span>锁定茅山派转盘法，不混用其他定局方法</span></div>
+            <div class="status-dot">测试服务在线</div>
+          </div>
+        </section>
+
+        <section class="experience" id="chart" hidden>
+          <div class="section-head"><div><small>DETERMINISTIC · CALCULATED</small><h2>时家奇门结构盘</h2></div><p>程序独立计算九宫、九星、八门与八神；当前不输出吉凶评分。</p></div>
+          <article class="result-card"><div id="result"></div></article>
+        </section>
+
+        <section class="system-story" id="system-story">
+          <div><small>SYSTEM · ORIGIN</small><h2>奇门遁甲</h2><em>Qimen Dunjia</em></div>
+          <div>
+            <p>
+              奇门遁甲是中国传统术数中的时空推演体系。相较于以个人出生时间为输入的命理模型，
+              时家奇门围绕特定日期与时刻建立九宫盘，将天盘、地盘、门、星、神等符号置于同一时空断面。
+              其定局涉及拆补、置闰、茅山等不同方法，任何程序结果都必须明确采用的排局法，不能将不同口径静默混合。
+            </p>
+            <div class="method-chips"><span>依赖提交版本已锁定</span><span>当前采用时家茅山派转盘法</span><span>仅返回九宫结构，不作策略吉凶承诺</span></div>
+          </div>
+        </section>
+
+        <details class="method-bar" id="boundary">
+          <summary>计算、方法与隐私边界</summary>
+          <p>奇门盘由独立确定性模块起局，不调用其他术数规则。当前只返回局数、值符、值使及九宫结构，不把候选依赖中的评分、断语或建议字段作为产品结果。</p>
+        </details>
+      </main>
+    </div>
+    <nav class="mobile-nav" aria-label="奇门遁甲手机导航">
+      <a href="/"><span>⌂</span>首页</a><a class="active" href="#home"><span>▦</span>起局</a><a href="#system-story"><span>冊</span>体系</a>
+    </nav>
+    <script src="/qimen-page.js"></script>
+  </body>
+</html>
