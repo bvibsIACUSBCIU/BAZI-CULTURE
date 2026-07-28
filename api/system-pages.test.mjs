@@ -4,7 +4,7 @@ import test from "node:test";
 
 const root = new URL("../", import.meta.url);
 
-test("Ziwei and Qimen user pages do not link or route into each other", async () => {
+test("legacy Ziwei and Qimen URLs redirect into the unified workspace", async () => {
   const [ziwei, qimen, ziweiScript, qimenScript] = await Promise.all([
     readFile(new URL("ziwei.html", root), "utf8"),
     readFile(new URL("qimen.html", root), "utf8"),
@@ -12,18 +12,25 @@ test("Ziwei and Qimen user pages do not link or route into each other", async ()
     readFile(new URL("qimen-page.js", root), "utf8"),
   ]);
 
-  assert.doesNotMatch(ziwei, /href="[^"]*qimen/iu);
-  assert.doesNotMatch(qimen, /href="[^"]*ziwei/iu);
+  assert.match(ziwei, /location\.replace\("\/#ziwei"\)/u);
+  assert.match(qimen, /location\.replace\("\/#qimen"\)/u);
   assert.match(ziweiScript, /\/api\/ziwei/u);
   assert.match(qimenScript, /\/api\/qimen/u);
 });
 
-test("Bazi navigation links to independent system pages", async () => {
+test("all system navigation switches panels inside one page", async () => {
   const index = await readFile(new URL("index.html", root), "utf8");
 
-  assert.match(index, /href="\/ziwei\.html"/u);
-  assert.match(index, /href="\/qimen\.html"/u);
-  assert.doesNotMatch(index, /systems\.html#/u);
+  for (const system of ["bazi", "ziwei", "qimen"]) {
+    assert.match(
+      index,
+      new RegExp(`data-system-switch="${system}" href="#${system}"`, "u"),
+    );
+    assert.match(index, new RegExp(`data-system-panel="${system}"`, "u"));
+  }
+  assert.doesNotMatch(index, /href="\/(?:ziwei|qimen)\.html"/u);
+  assert.match(index, /function activateSystem/u);
+  assert.match(index, /history\.replaceState/u);
 });
 
 test("public system pages keep research documentation out of the main UI", async () => {
@@ -38,44 +45,42 @@ test("public system pages keep research documentation out of the main UI", async
   }
 });
 
-test("system background copy is embedded without return-home navigation", async () => {
-  const [index, ziwei, qimen] = await Promise.all(
-    ["index.html", "ziwei.html", "qimen.html"].map((name) =>
-      readFile(new URL(name, root), "utf8"),
-    ),
-  );
+test("system background copy is embedded in the unified workspace", async () => {
+  const index = await readFile(new URL("index.html", root), "utf8");
 
   assert.match(index, /子平八字 · Bazi \(Four Pillars\)/u);
-  assert.match(ziwei, /紫微斗数 · Ziwei Doushu/u);
-  assert.match(qimen, /奇门遁甲 · Qimen Dunjia/u);
-  assert.doesNotMatch(ziwei, /返回首页/u);
-  assert.doesNotMatch(qimen, /返回首页/u);
+  assert.match(index, /紫微斗数 · Ziwei Doushu/u);
+  assert.match(index, /奇门遁甲 · Qimen Dunjia/u);
+  assert.doesNotMatch(index, /返回首页/u);
 });
 
 test("all three systems share the same first-screen product skeleton", async () => {
-  const pages = await Promise.all(
-    ["index.html", "ziwei.html", "qimen.html"].map((name) =>
-      readFile(new URL(name, root), "utf8"),
-    ),
-  );
-  const requiredClasses = [
-    "layout",
-    "sidebar",
-    "brand",
-    "nav",
-    "main",
-    "hero",
-    "intro",
-    "tagline",
-    "system-copy",
-    "form-card",
-    "cosmos",
-    "status-dot",
-  ];
+  const index = await readFile(new URL("index.html", root), "utf8");
+  const panels = [...index.matchAll(
+    /<div class="system-panel"[^>]*data-system-panel="([^"]+)"[\s\S]*?(?=<div class="system-panel"|<\/main>)/gu,
+  )];
 
-  for (const page of pages) {
-    for (const className of requiredClasses) {
-      assert.match(page, new RegExp(`class="[^"]*\\b${className}\\b`));
+  assert.equal(panels.length, 3);
+  for (const [, system] of panels) {
+    const panel = panels.find((entry) => entry[1] === system)[0];
+    for (const className of ["hero", "intro", "tagline", "system-copy", "form-card", "cosmos", "status-dot"]) {
+      assert.match(panel, new RegExp(`class="[^"]*\\b${className}\\b`));
     }
   }
+});
+
+test("each system keeps its own form, result target, and deterministic endpoint", async () => {
+  const [index, ziweiScript, qimenScript] = await Promise.all([
+    readFile(new URL("index.html", root), "utf8"),
+    readFile(new URL("ziwei-page.js", root), "utf8"),
+    readFile(new URL("qimen-page.js", root), "utf8"),
+  ]);
+
+  assert.match(index, /id="birth-form"/u);
+  assert.match(index, /id="ziwei-form"/u);
+  assert.match(index, /id="qimen-form"/u);
+  assert.match(index, /type="module" src="\/ziwei-page\.js"/u);
+  assert.match(index, /type="module" src="\/qimen-page\.js"/u);
+  assert.match(ziweiScript, /getElementById\("ziwei-chart"\)/u);
+  assert.match(qimenScript, /getElementById\("qimen-chart"\)/u);
 });

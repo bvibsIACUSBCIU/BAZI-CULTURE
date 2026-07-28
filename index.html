@@ -9,6 +9,7 @@
     />
     <meta name="theme-color" content="#090e14" />
     <title>两仪 · 命理智能体</title>
+    <link rel="stylesheet" href="/systems-workspace.css" />
     <style>
       :root {
         color-scheme: dark;
@@ -1348,7 +1349,7 @@
           font-size: 9px;
         }
 
-        .mobile-nav a:first-child {
+        .mobile-nav a.active {
           color: var(--gold-light);
         }
 
@@ -1389,7 +1390,7 @@
 
     <div class="layout">
       <aside class="sidebar">
-        <a class="brand" href="#home" aria-label="两仪首页">
+        <a class="brand" href="#bazi" aria-label="两仪首页">
           <svg class="brand-mark" viewBox="0 0 100 100" aria-hidden="true">
             <circle cx="50" cy="50" r="43" fill="none" stroke="#d3a85e" stroke-width="2" />
             <circle cx="50" cy="50" r="31" fill="none" stroke="#765f39" />
@@ -1401,9 +1402,9 @@
         </a>
 
         <nav class="nav" aria-label="主导航">
-          <a class="active" href="#home"><span class="nav-icon">◎</span>八字研读</a>
-          <a href="/ziwei.html"><span class="nav-icon">✦</span>紫微斗数</a>
-          <a href="/qimen.html"><span class="nav-icon">▦</span>奇门遁甲</a>
+          <a class="active" data-system-switch="bazi" href="#bazi"><span class="nav-icon">◎</span>八字研读</a>
+          <a data-system-switch="ziwei" href="#ziwei"><span class="nav-icon">✦</span>紫微斗数</a>
+          <a data-system-switch="qimen" href="#qimen"><span class="nav-icon">▦</span>奇门遁甲</a>
         </nav>
 
         <div class="side-foot">
@@ -1412,9 +1413,9 @@
         </div>
       </aside>
 
-      <main class="main" id="home">
+      <main class="main" id="workspace">
         <header class="mobile-top">
-          <a class="brand" href="#home">
+          <a class="brand" href="#bazi">
             <svg class="brand-mark" viewBox="0 0 100 100" aria-hidden="true">
               <circle cx="50" cy="50" r="43" fill="none" stroke="#d3a85e" stroke-width="2" />
               <path d="M50 17a33 33 0 0 1 0 66a16.5 16.5 0 0 1 0-33a16.5 16.5 0 0 0 0-33" fill="#d3a85e" />
@@ -1426,6 +1427,7 @@
           <span class="mobile-status" aria-label="测试版在线"></span>
         </header>
 
+        <div class="system-panel" id="bazi-system" data-system-panel="bazi">
         <section class="hero">
           <div class="intro">
             <h1>观其时，知其序</h1>
@@ -1713,17 +1715,187 @@
             <button id="clear-button" type="button">清除本次命盘</button>
           </div>
         </section>
+        </div>
+
+        <div class="system-panel" id="ziwei-system" data-system-panel="ziwei" hidden>
+          <section class="hero">
+            <div class="intro">
+              <h1>观星曜，识宫垣</h1>
+              <div class="tagline">以十二宫为序，见星曜之位</div>
+              <div class="system-copy">
+                <strong>紫微斗数 · Ziwei Doushu</strong>
+                <p>
+                  相传由宋代道家学者陈抟（陈希夷）创立，集古代星相学之大成。至明清时期，相关典籍逐渐完善并流传。
+                  紫微斗数的星曜并非天文学意义上的实体星体，而是阴阳五行符号的拟人化与具象化。
+                  其体系庞大、逻辑严谨，侧重于心理分析与人生多种境遇的细腻刻画。
+                </p>
+              </div>
+              <form class="form-card" id="ziwei-form">
+                <h2 class="card-title"><span>✦</span>开始排盘</h2>
+                <div class="field-grid">
+                  <div class="field field--wide">
+                    <label for="z-date"><span>公历出生日期</span><small>1900—2099</small></label>
+                    <div class="input-wrap"><input id="z-date" type="date" min="1900-01-01" max="2099-12-31" required /></div>
+                  </div>
+                  <div class="field">
+                    <label for="z-time"><span>出生时间</span><small>必须准确</small></label>
+                    <div class="input-wrap"><input id="z-time" type="time" required /></div>
+                  </div>
+                  <div class="field">
+                    <label for="z-gender"><span>性别</span><small>排盘参数</small></label>
+                    <div class="input-wrap">
+                      <select id="z-gender" required><option value="">请选择</option><option>男</option><option>女</option></select>
+                    </div>
+                  </div>
+                </div>
+                <p class="boundary">当前按中国标准时间 UTC+8 排盘，尚未启用历史时区或真太阳时校正。</p>
+                <label class="consent-row"><input id="z-consent" type="checkbox" required /><span>我已满 18 岁，并同意本次处理出生日期、时间、性别及派生盘面。</span></label>
+                <button class="primary" type="submit">生成十二宫命盘　→</button>
+                <p class="privacy">♢ 默认不持久化原始出生资料 · 仅供传统文化研究</p>
+                <div class="error" id="z-error" role="alert"></div>
+              </form>
+            </div>
+            <div class="cosmos" aria-label="动态紫微十二宫">
+              <div class="ziwei-visual">
+                <div class="orbit-line"></div>
+                <span class="palace-dot" style="--i:0">命宫</span><span class="palace-dot" style="--i:1">兄弟</span>
+                <span class="palace-dot" style="--i:2">夫妻</span><span class="palace-dot" style="--i:3">子女</span>
+                <span class="palace-dot" style="--i:4">财帛</span><span class="palace-dot" style="--i:5">疾厄</span>
+                <span class="palace-dot" style="--i:6">迁移</span><span class="palace-dot" style="--i:7">仆役</span>
+                <span class="palace-dot" style="--i:8">官禄</span><span class="palace-dot" style="--i:9">田宅</span>
+                <span class="palace-dot" style="--i:10">福德</span><span class="palace-dot" style="--i:11">父母</span>
+                <div class="center-seal">紫微</div>
+              </div>
+              <div class="cosmos-copy"><strong>星曜布列 · 十二宫垣</strong><span>确定性程序排盘，当前仅返回结构盘面</span></div>
+              <div class="status-dot">计算服务在线</div>
+            </div>
+          </section>
+          <section class="experience" id="ziwei-chart" hidden>
+            <div class="section-head"><div><small>DETERMINISTIC · CALCULATED</small><h2>紫微十二宫命盘</h2></div><p>程序独立计算星曜与宫位；当前不使用 AI 生成吉凶断语。</p></div>
+            <article class="result-card"><div id="ziwei-result"></div></article>
+          </section>
+        </div>
+
+        <div class="system-panel" id="qimen-system" data-system-panel="qimen" hidden>
+          <section class="hero">
+            <div class="intro">
+              <h1>观其局，察其门</h1>
+              <div class="tagline">以九宫为盘，见门星神仪</div>
+              <div class="system-copy">
+                <strong>奇门遁甲 · Qimen Dunjia</strong>
+                <p>
+                  中国古代著名的术数预测与决策体系。不同于偏向个人先天时间的纵向轨迹分析，
+                  奇门遁甲建立在特定时空断面上的三维矩阵，包含天盘、地盘、人盘和神盘，
+                  用于观察时间、方位与策略之间的结构关系。
+                </p>
+              </div>
+              <form class="form-card" id="qimen-form">
+                <h2 class="card-title"><span>▦</span>开始起局</h2>
+                <div class="field-grid">
+                  <div class="field field--wide">
+                    <label for="q-date"><span>问事 / 起局日期</span><small>1900—2099</small></label>
+                    <div class="input-wrap"><input id="q-date" type="date" min="1900-01-01" max="2099-12-31" required /></div>
+                  </div>
+                  <div class="field field--wide">
+                    <label for="q-time"><span>问事 / 起局时间</span><small>时家奇门</small></label>
+                    <div class="input-wrap"><input id="q-time" type="time" required /></div>
+                  </div>
+                </div>
+                <p class="boundary">当前锁定茅山派转盘法；拆补、置闰等方法存在差异，本版不静默混用。</p>
+                <label class="consent-row"><input id="q-consent" type="checkbox" required /><span>我已满 18 岁，并同意本次处理起局日期、时间及派生盘面。</span></label>
+                <button class="primary" type="submit">生成时家奇门盘　→</button>
+                <p class="privacy">♢ 盘面仅作传统文化研究 · 不用于重大人生决策</p>
+                <div class="error" id="q-error" role="alert"></div>
+              </form>
+            </div>
+            <div class="cosmos" aria-label="动态奇门九宫">
+              <div class="qimen-visual">
+                <div class="qimen-cell"><span>巽四</span></div><div class="qimen-cell"><span>离九</span></div><div class="qimen-cell"><span>坤二</span></div>
+                <div class="qimen-cell"><span>震三</span></div><div class="qimen-cell"><span>中五</span></div><div class="qimen-cell"><span>兑七</span></div>
+                <div class="qimen-cell"><span>艮八</span></div><div class="qimen-cell"><span>坎一</span></div><div class="qimen-cell"><span>乾六</span></div>
+              </div>
+              <div class="cosmos-copy"><strong>九宫定位 · 门星神仪</strong><span>锁定茅山派转盘法，不混用其他定局方法</span></div>
+              <div class="status-dot">计算服务在线</div>
+            </div>
+          </section>
+          <section class="experience" id="qimen-chart" hidden>
+            <div class="section-head"><div><small>DETERMINISTIC · CALCULATED</small><h2>时家奇门结构盘</h2></div><p>程序独立计算九宫、九星、八门与八神；当前不输出吉凶评分。</p></div>
+            <article class="result-card"><div id="qimen-result"></div></article>
+          </section>
+        </div>
 
       </main>
     </div>
 
     <nav class="mobile-nav" aria-label="手机导航">
-      <a href="#home"><span>◎</span>八字</a>
-      <a href="/ziwei.html"><span>✦</span>紫微</a>
-      <a href="/qimen.html"><span>▦</span>奇门</a>
+      <a class="active" data-system-switch="bazi" href="#bazi"><span>◎</span>八字</a>
+      <a data-system-switch="ziwei" href="#ziwei"><span>✦</span>紫微</a>
+      <a data-system-switch="qimen" href="#qimen"><span>▦</span>奇门</a>
     </nav>
 
     <script>
+      const systemSwitches = Array.from(
+        document.querySelectorAll("[data-system-switch]"),
+      );
+      const systemPanels = Array.from(
+        document.querySelectorAll("[data-system-panel]"),
+      );
+      const systemNames = {
+        bazi: "八字研读",
+        ziwei: "紫微斗数",
+        qimen: "奇门遁甲",
+      };
+
+      function activateSystem(system, options = {}) {
+        const nextSystem = Object.hasOwn(systemNames, system) ? system : "bazi";
+        const updateHash = options.updateHash !== false;
+        const shouldScroll = options.scroll === true;
+
+        systemPanels.forEach((panel) => {
+          panel.hidden = panel.dataset.systemPanel !== nextSystem;
+        });
+        systemSwitches.forEach((link) => {
+          const active = link.dataset.systemSwitch === nextSystem;
+          link.classList.toggle("active", active);
+          if (active) {
+            link.setAttribute("aria-current", "page");
+          } else {
+            link.removeAttribute("aria-current");
+          }
+        });
+        document.title = `${systemNames[nextSystem]}｜两仪`;
+
+        if (updateHash && location.hash !== `#${nextSystem}`) {
+          history.replaceState(null, "", `#${nextSystem}`);
+        }
+        if (shouldScroll) {
+          document.getElementById("workspace").scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        }
+      }
+
+      systemSwitches.forEach((link) => {
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+          activateSystem(link.dataset.systemSwitch, {
+            updateHash: true,
+            scroll: true,
+          });
+        });
+      });
+      window.addEventListener("hashchange", () => {
+        activateSystem(location.hash.slice(1), {
+          updateHash: false,
+          scroll: false,
+        });
+      });
+      activateSystem(location.hash.slice(1), {
+        updateHash: true,
+        scroll: false,
+      });
+
       const form = document.getElementById("birth-form");
       const dateInput = document.getElementById("birth-date");
       const timeInput = document.getElementById("birth-time");
@@ -2167,7 +2339,7 @@
           timeInput.disabled = false;
           timeInput.required = true;
         }
-        document.getElementById("home").scrollIntoView({
+        document.getElementById("bazi-system").scrollIntoView({
           behavior: "smooth",
           block: "start",
         });
@@ -2192,5 +2364,7 @@
         target.style.display = message ? "block" : "none";
       }
     </script>
+    <script type="module" src="/ziwei-page.js"></script>
+    <script type="module" src="/qimen-page.js"></script>
   </body>
 </html>

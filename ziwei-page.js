@@ -1,7 +1,7 @@
 const form = document.getElementById("ziwei-form");
 const errorBox = document.getElementById("z-error");
-const chartSection = document.getElementById("chart");
-const result = document.getElementById("result");
+const chartSection = document.getElementById("ziwei-chart");
+const result = document.getElementById("ziwei-result");
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();

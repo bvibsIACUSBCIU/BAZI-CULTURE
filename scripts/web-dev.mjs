@@ -49,6 +49,7 @@ const server = createServer(async (request, response) => {
     ["/system-page.css", "system-page.css"],
     ["/ziwei-page.js", "ziwei-page.js"],
     ["/qimen-page.js", "qimen-page.js"],
+    ["/systems-workspace.css", "systems-workspace.css"],
   ]);
   if (staticPages.has(request.url)) {
     const fileName = staticPages.get(request.url);

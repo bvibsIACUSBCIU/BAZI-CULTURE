@@ -1,7 +1,7 @@
 const form = document.getElementById("qimen-form");
 const errorBox = document.getElementById("q-error");
-const chartSection = document.getElementById("chart");
-const result = document.getElementById("result");
+const chartSection = document.getElementById("qimen-chart");
+const result = document.getElementById("qimen-result");
 const palaceOrder = [4, 9, 2, 3, 5, 7, 8, 1, 6];
 
 form.addEventListener("submit", async (event) => {
