@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "echo 'No static build step required'",
     "dev": "node scripts/local-polling.mjs",
     "dev:web": "node scripts/web-dev.mjs",
     "test": "node --test api/*.test.mjs",
