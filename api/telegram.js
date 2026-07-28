@@ -19,6 +19,7 @@ import {
 } from "../lib/runtime/rate-limiter.js";
 import { createSessionStore } from "../lib/runtime/session-store.js";
 import { UpdateDeduplicator } from "../lib/runtime/update-deduplicator.js";
+import { getEnv } from "../lib/runtime/env.js";
 import { verifyTelegramWebhook } from "../lib/runtime/webhook-security.js";
 
 const INTRO_TEXT = [
@@ -74,14 +75,14 @@ export function createHandler(options = {}) {
   const agentRuntime =
     options.agentRuntime || createAgentRuntime({ generate, toolRegistry });
   const webhookSecret =
-    options.webhookSecret ?? process.env.TELEGRAM_WEBHOOK_SECRET;
+    options.webhookSecret ?? getEnv().TELEGRAM_WEBHOOK_SECRET;
 
   return async function handler(request, response) {
     if (request.method === "GET") {
       response.status(200).json({
         ok: true,
         service: "Bazi culture research Telegram MVP",
-        telegram_configured: Boolean(process.env.TELEGRAM_BOT_TOKEN),
+        telegram_configured: Boolean(getEnv().TELEGRAM_BOT_TOKEN),
         session_store: sessionStore.mode,
         agent_runtime: "minimum-runtime-v1",
       });

@@ -16,6 +16,7 @@ import { createBaziTools } from "../lib/agent/tools/bazi-tools.js";
 import { createKnowledgeTools } from "../lib/agent/tools/knowledge-tools.js";
 import { AGENT_LIMITS } from "../lib/agent/agent-policy.js";
 import { normalizeBaziTopic } from "../lib/metaphysics/bazi-topics.js";
+import { getEnv } from "../lib/runtime/env.js";
 
 export function createAiReportHandler(options = {}) {
   const calculate = options.calculate || calculateBazi;
@@ -28,25 +29,28 @@ export function createAiReportHandler(options = {}) {
     );
   const agentRuntime =
     options.agentRuntime || createAgentRuntime({ generate, toolRegistry });
-  const store = options.store || createSessionStore();
-  const clientLimiter =
+  const storeFactory = options.store ? () => options.store : () => createSessionStore();
+  const clientLimiterFactory = () =>
     options.clientLimiter ||
     new FixedWindowRateLimiter({
-      store,
+      store: storeFactory(),
       scope: "web-ai-client",
       limit: 8,
       windowSeconds: 10 * 60,
     });
-  const globalLimiter =
+  const globalLimiterFactory = () =>
     options.globalLimiter ||
     new FixedWindowRateLimiter({
-      store,
+      store: storeFactory(),
       scope: "web-ai-global",
-      limit: Number.parseInt(process.env.AI_DAILY_LIMIT || "200", 10),
+      limit: Number.parseInt(getEnv().AI_DAILY_LIMIT || "200", 10),
       windowSeconds: 24 * 60 * 60,
     });
 
   return async function handler(request, response) {
+    const store = storeFactory();
+    const clientLimiter = clientLimiterFactory();
+    const globalLimiter = globalLimiterFactory();
     response.setHeader("Cache-Control", "no-store");
     response.setHeader("Content-Type", "application/json; charset=utf-8");
 
@@ -54,9 +58,9 @@ export function createAiReportHandler(options = {}) {
       response.status(200).json({
         ok: true,
         service: "Bazi AI cultural interpretation test",
-        configured: Boolean(process.env.OPENAI_API_KEY),
-        model: process.env.OPENAI_MODEL || "gpt-5.5",
-        provider: process.env.AI_PROVIDER || "openai",
+        configured: Boolean(getEnv().OPENAI_API_KEY),
+        model: getEnv().OPENAI_MODEL || "gpt-5.5",
+        provider: getEnv().AI_PROVIDER || "openai",
       });
       return;
     }
