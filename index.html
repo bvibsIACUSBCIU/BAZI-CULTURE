@@ -989,6 +989,164 @@
         font: 10px/1.8 var(--sans);
       }
 
+      /* 生克微光指示 (Task 4) */
+      .glow-same {
+        box-shadow: inset 0 0 8px rgba(239, 223, 197, 0.25), 0 0 8px rgba(239, 223, 197, 0.2);
+        border-color: rgba(239, 223, 197, 0.45) !important;
+      }
+
+      .glow-generate {
+        box-shadow: inset 0 0 8px rgba(76, 175, 80, 0.25), 0 0 8px rgba(76, 175, 80, 0.2);
+        border-color: rgba(76, 175, 80, 0.45) !important;
+      }
+
+      .glow-control {
+        box-shadow: inset 0 0 8px rgba(244, 67, 54, 0.25), 0 0 8px rgba(244, 67, 54, 0.2);
+        border-color: rgba(244, 67, 54, 0.45) !important;
+      }
+
+      .glow-legend {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        margin: -8px 0 16px;
+        font-size: 10px;
+        color: #858d92;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .legend-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+      }
+      .legend-dot.same { background: #efdfc5; box-shadow: 0 0 4px #efdfc5; }
+      .legend-dot.gen { background: var(--wood); box-shadow: 0 0 4px var(--wood); }
+      .legend-dot.ctrl { background: var(--fire); box-shadow: 0 0 4px var(--fire); }
+
+      /* Segmented Tabs 分段切换器 (Task 5) */
+      .intent-picker.segmented-mode {
+        margin-bottom: 20px;
+        background: rgba(18, 22, 28, 0.85);
+        padding: 5px;
+        border-radius: 12px;
+        border: 1px solid rgba(211, 168, 94, 0.25);
+      }
+
+      .intent-picker.segmented-mode strong {
+        display: none;
+      }
+
+      .intent-picker.segmented-mode .intent-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        grid-template-columns: none;
+      }
+
+      .intent-picker.segmented-mode .intent-card {
+        flex: 1;
+        min-width: 72px;
+        padding: 8px 10px;
+        font-size: 12px;
+        font-weight: 500;
+        text-align: center;
+        border-radius: 8px;
+        background: transparent;
+        border: 1px solid transparent;
+        color: #9ea6ab;
+        transition: all 0.2s ease;
+      }
+
+      .intent-picker.segmented-mode .intent-card small {
+        display: none;
+      }
+
+      .intent-picker.segmented-mode .intent-card:hover {
+        color: #ead9bd;
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .intent-picker.segmented-mode .intent-card.active {
+        color: #12161c;
+        background: #d3a85e;
+        border-color: #d3a85e;
+        font-weight: 600;
+        box-shadow: 0 2px 8px rgba(211, 168, 94, 0.35);
+      }
+
+      /* 事实标签 Fact Tags (Task 7) */
+      .fact-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        padding: 2px 8px;
+        margin: 2px 4px;
+        font-size: 11px;
+        font-family: inherit;
+        border-radius: 12px;
+        background: rgba(211, 168, 94, 0.12);
+        color: #e5cd9c;
+        border: 1px solid rgba(211, 168, 94, 0.3);
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .fact-tag:hover {
+        background: rgba(211, 168, 94, 0.3);
+        border-color: #d3a85e;
+        color: #ffffff;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(211, 168, 94, 0.3);
+      }
+
+      /* 盘面高亮联动 */
+      .pillar-card.is-highlighted,
+      .bar.is-highlighted {
+        outline: 2px solid #d3a85e;
+        outline-offset: 2px;
+        box-shadow: 0 0 18px rgba(211, 168, 94, 0.55) !important;
+        animation: pulseHighlight 1.5s infinite alternate ease-in-out;
+      }
+
+      @keyframes pulseHighlight {
+        from { transform: scale(1); box-shadow: 0 0 10px rgba(211, 168, 94, 0.4); }
+        to { transform: scale(1.02); box-shadow: 0 0 22px rgba(211, 168, 94, 0.75); }
+      }
+
+      /* 反思提问 Actionable Chips (Task 8) */
+      .reflection-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .action-chip {
+        background: rgba(211, 168, 94, 0.08);
+        color: #ead9bd;
+        border: 1px solid rgba(211, 168, 94, 0.25);
+        padding: 7px 13px;
+        border-radius: 16px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: left;
+      }
+
+      .action-chip:hover {
+        background: rgba(211, 168, 94, 0.22);
+        border-color: #d3a85e;
+        color: #ffffff;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(211, 168, 94, 0.25);
+      }
+
       .ai-card {
         position: relative;
         overflow: hidden;
@@ -2202,6 +2360,9 @@
         }
       }
 
+      let aiStageTimer1 = null;
+      let aiStageTimer2 = null;
+
       async function generateAi(question, topic = currentTopic) {
         if (!currentInput) return;
         currentTopic = topic || "overview";
@@ -2209,7 +2370,15 @@
         const isQuestion = Boolean(String(question).trim());
         setAiLoading(true);
         cosmos.classList.add("is-loading");
-        aiButton.textContent = isQuestion ? "正在思考你的问题…" : "两仪流转 · AI 解读中";
+
+        // Task 6: 多阶段打字/状态切换提示
+        aiButton.textContent = "[1/3] 正在调取确定性命盘摘要…";
+        aiStageTimer1 = setTimeout(() => {
+          if (aiButton.disabled) aiButton.textContent = "[2/3] 匹配已审核古籍规则库…";
+        }, 1200);
+        aiStageTimer2 = setTimeout(() => {
+          if (aiButton.disabled) aiButton.textContent = "[3/3] 生成受约束结构解读…";
+        }, 2600);
 
         try {
           const payload = await postJson("/api/ai-report", {
@@ -2220,7 +2389,12 @@
           });
           previousReading = payload.ai.text;
           renderAi(payload.ai.reading, payload.ai.agent);
-          intentPicker.hidden = true;
+
+          // Task 5: 将 intentPicker 转化为顶部的 Tab 分段切换器（Segmented Tabs）
+          intentPicker.classList.add("segmented-mode");
+          intentPicker.hidden = false;
+          updateSegmentedTabsActiveState(currentTopic, isQuestion);
+
           aiOutput.hidden = false;
           questionArea.hidden = false;
           feedbackPanel.hidden = false;
@@ -2233,9 +2407,27 @@
         } catch (error) {
           setError(aiError, error.message || "AI 解读暂时不可用。");
         } finally {
+          clearTimeout(aiStageTimer1);
+          clearTimeout(aiStageTimer2);
           setAiLoading(false);
           cosmos.classList.remove("is-loading");
           aiButton.innerHTML = aiButtonDefaultMarkup;
+        }
+      }
+
+      function updateSegmentedTabsActiveState(topic, isQuestion) {
+        const cards = intentPicker.querySelectorAll(".intent-card");
+        cards.forEach((card) => card.classList.remove("active"));
+        if (isQuestion) {
+          customQuestionButton.classList.add("active");
+        } else if (topic === "career") {
+          document.querySelector('[data-topic="career"]')?.classList.add("active");
+        } else if (topic === "wealth") {
+          document.querySelector('[data-topic="wealth"]')?.classList.add("active");
+        } else if (topic === "relationship") {
+          document.querySelector('[data-topic="relationship"]')?.classList.add("active");
+        } else {
+          aiButton.classList.add("active");
         }
       }
 
@@ -2255,6 +2447,17 @@
           戌: "土", 丑: "土", 未: "土", 申: "金", 酉: "金",
           亥: "水", 子: "水",
         };
+        const GENERATES = { 木: "火", 火: "土", 土: "金", 金: "水", 水: "木" };
+        const CONTROLS = { 木: "土", 土: "水", 水: "火", 火: "金", 金: "木" };
+        const dmElem = payload.chart.dayMaster.element;
+
+        function getGlowClass(elem) {
+          if (!elem || !dmElem) return "";
+          if (elem === dmElem) return "glow-same";
+          if (GENERATES[elem] === dmElem || GENERATES[dmElem] === elem) return "glow-generate";
+          if (CONTROLS[elem] === dmElem || CONTROLS[dmElem] === elem) return "glow-control";
+          return "";
+        }
 
         pillarBox.replaceChildren(
           ...labels.map(([label, key]) => {
@@ -2268,6 +2471,9 @@
             const branch = isKnown ? rawPillar[1] : "—";
             const stemElem = stemElements[stem] || "";
             const branchElem = branchElements[branch] || "";
+
+            const stemGlow = getGlowClass(stemElem);
+            const branchGlow = getGlowClass(branchElem);
 
             const stemGod = payload.chart.tenGods?.stems?.[key] || (key === "day" ? "日主" : "—");
 
@@ -2283,11 +2489,11 @@
             card.innerHTML = `
               <div class="pillar-header">${label}</div>
               <div class="pillar-row god-row">${stemGod}</div>
-              <div class="pillar-row stem-row" data-char="${stem}" data-element="${stemElem}">
+              <div class="pillar-row stem-row ${stemGlow}" data-char="${stem}" data-element="${stemElem}">
                 <span class="char">${stem}</span>
                 ${stemElem ? `<span class="elem-badge elem-${stemElem}">${stemElem}</span>` : ""}
               </div>
-              <div class="pillar-row branch-row" data-char="${branch}" data-element="${branchElem}">
+              <div class="pillar-row branch-row ${branchGlow}" data-char="${branch}" data-element="${branchElem}">
                 <span class="char">${branch}</span>
                 ${branchElem ? `<span class="elem-badge elem-${branchElem}">${branchElem}</span>` : ""}
               </div>
@@ -2304,6 +2510,19 @@
             return card;
           }),
         );
+
+        // 附送图例
+        let existingLegend = pillarBox.parentElement.querySelector(".glow-legend");
+        if (!existingLegend) {
+          existingLegend = document.createElement("div");
+          existingLegend.className = "glow-legend";
+          existingLegend.innerHTML = `
+            <span class="legend-item"><span class="legend-dot same"></span>同气微光</span>
+            <span class="legend-item"><span class="legend-dot gen"></span>相生微光</span>
+            <span class="legend-item"><span class="legend-dot ctrl"></span>相克微光</span>
+          `;
+          pillarBox.after(existingLegend);
+        }
 
         const accordionBadge = document.getElementById("accordion-badge");
         if (accordionBadge) {
@@ -2382,6 +2601,61 @@
           " · 证据完整度：" +
           (reading.confidence === "moderate" ? "中等" : "有限");
         aiSummary.textContent = reading.summary;
+
+        // Task 7: 事实代码映射为带有 Hover/Click 交互的事实标签 Fact Tags
+        function formatFactTag(factCode) {
+          const codeMap = {
+            DAY_MASTER: "依：日柱干支",
+            MONTH_BRANCH: "依：月令提纲",
+            TOPIC_TEN_GODS: "依：专题十神",
+            STRUCTURAL_RELATIONS: "依：原局冲合",
+            SPOUSE_PALACE: "依：日支夫妻宫",
+          };
+          if (codeMap[factCode]) return codeMap[factCode];
+          if (String(factCode).startsWith("fact-")) return `依：事实 #${factCode.replace("fact-", "")}`;
+          return `依：${factCode}`;
+        }
+
+        function bindFactTagInteractions(btn, rawCode, factText = "") {
+          btn.addEventListener("mouseenter", () => {
+            highlightMatchedElements(rawCode, factText, true);
+          });
+          btn.addEventListener("mouseleave", () => {
+            highlightMatchedElements(rawCode, factText, false);
+          });
+          btn.addEventListener("click", () => {
+            document.getElementById("chart")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          });
+        }
+
+        function highlightMatchedElements(rawCode, factText, active) {
+          const codeStr = String(rawCode).toUpperCase();
+          const textStr = String(factText);
+
+          document.querySelectorAll(".pillar-card, .bar").forEach((el) => {
+            if (!active) {
+              el.classList.remove("is-highlighted");
+              return;
+            }
+
+            let match = false;
+            if (codeStr.includes("DAY_MASTER") || textStr.includes("日主") || textStr.includes("日柱")) {
+              if (el.dataset.pillar === "day") match = true;
+            }
+            if (codeStr.includes("MONTH_BRANCH") || textStr.includes("月支") || textStr.includes("月柱")) {
+              if (el.dataset.pillar === "month") match = true;
+            }
+            if (codeStr.includes("SPOUSE_PALACE") || textStr.includes("夫妻宫") || textStr.includes("日支")) {
+              if (el.dataset.pillar === "day") match = true;
+            }
+            ["木", "火", "土", "金", "水"].forEach((elem) => {
+              if (textStr.includes(elem) && el.dataset.element === elem) match = true;
+            });
+
+            if (match) el.classList.add("is-highlighted");
+          });
+        }
+
         aiSections.replaceChildren(
           ...reading.sections.map((section) => {
             const item = document.createElement("div");
@@ -2397,14 +2671,30 @@
             title.textContent = section.title;
             body.textContent = section.body;
             refs.className = "source-refs";
-            refs.textContent = [
-              section.factRefs?.length
-                ? "事实编号：" + section.factRefs.join(" · ")
-                : "事实编号缺失",
-              section.sourceRefs?.length
-                ? "规则：" + section.sourceRefs.join(" · ")
-                : "未引用古籍规则",
-            ].join("｜");
+
+            refs.replaceChildren();
+            if (section.factRefs?.length) {
+              section.factRefs.forEach((code) => {
+                const tagBtn = document.createElement("button");
+                tagBtn.className = "fact-tag";
+                tagBtn.type = "button";
+                tagBtn.textContent = formatFactTag(code);
+                bindFactTagInteractions(tagBtn, code, "");
+                refs.append(tagBtn);
+              });
+            } else {
+              const span = document.createElement("span");
+              span.textContent = "事实依据未明确";
+              refs.append(span);
+            }
+
+            if (section.sourceRefs?.length) {
+              const ruleSpan = document.createElement("span");
+              ruleSpan.style.marginLeft = "8px";
+              ruleSpan.textContent = "｜规则：" + section.sourceRefs.join(" · ");
+              refs.append(ruleSpan);
+            }
+
             facts.className = "evidence-lines";
             facts.replaceChildren(
               ...(section.supportingFacts || []).map((text) => {
@@ -2425,13 +2715,25 @@
             return item;
           }),
         );
-        reflectionList.replaceChildren(
-          ...reading.reflectionQuestions.map((question) => {
-            const item = document.createElement("li");
-            item.textContent = question;
-            return item;
-          }),
-        );
+
+        // Task 8: 反思提问渲染为快捷气泡卡片 Actionable Chips
+        const reflectionContainer = document.createElement("div");
+        reflectionContainer.className = "reflection-chips";
+        (reading.reflectionQuestions || []).forEach((questionText) => {
+          const chipBtn = document.createElement("button");
+          chipBtn.className = "action-chip";
+          chipBtn.type = "button";
+          chipBtn.textContent = questionText;
+          chipBtn.addEventListener("click", async () => {
+            questionInput.value = questionText;
+            questionArea.hidden = false;
+            questionInput.focus();
+            await generateAi(questionText, currentTopic);
+          });
+          reflectionContainer.append(chipBtn);
+        });
+        reflectionList.replaceChildren(reflectionContainer);
+
         aiLimit.textContent = "边界：" + reading.limitations;
         document.getElementById("ai-provenance").textContent =
           agent?.fallback?.active

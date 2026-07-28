@@ -1,7 +1,11 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+const rootDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+loadEnv(path.join(rootDir, ".env"));
 
 import reportHandler from "../api/report.js";
 import aiReportHandler from "../api/ai-report.js";
@@ -9,7 +13,21 @@ import eventsHandler from "../api/events.js";
 import ziweiHandler from "../api/ziwei.js";
 import qimenHandler from "../api/qimen.js";
 
-const rootDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+function loadEnv(filePath) {
+  if (!fs.existsSync(filePath)) return;
+  for (const line of fs.readFileSync(filePath, "utf8").split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const index = trimmed.indexOf("=");
+    if (index === -1) continue;
+    const key = trimmed.slice(0, index).trim();
+    const val = trimmed.slice(index + 1).trim().replace(/^["']|["']$/g, "");
+    if (!process.env[key]) {
+      process.env[key] = val;
+    }
+  }
+}
+
 const port = Number(process.env.PORT || 4173);
 
 const server = createServer(async (request, response) => {
