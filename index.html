@@ -1343,35 +1343,34 @@
         font-size: 10px;
       }
 
-      /* Plain-Language User Report Card (Bottom) */
-      .user-report-card {
+      /* Plain-Language User Report Container (Bottom, Segmented Text, No Cards, No Emojis) */
+      .user-report-container {
         margin-top: 24px;
-        padding: 20px 22px;
-        border: 1px solid rgba(211, 168, 94, 0.35);
-        border-radius: 14px;
-        background: linear-gradient(180deg, rgba(25, 32, 44, 0.85) 0%, rgba(15, 20, 28, 0.95) 100%);
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        padding: 24px 26px;
+        border: 1px solid rgba(211, 168, 94, 0.3);
+        border-radius: 12px;
+        background: rgba(17, 24, 32, 0.85);
       }
 
       .user-report-header {
         display: flex;
         align-items: center;
-        gap: 10px;
-        margin-bottom: 16px;
-        padding-bottom: 12px;
+        gap: 12px;
+        margin-bottom: 20px;
+        padding-bottom: 14px;
         border-bottom: 1px solid rgba(211, 168, 94, 0.2);
       }
 
       .user-report-header h3 {
         margin: 0;
         color: #f0cb82;
-        font: 600 16px/1.3 var(--serif);
-        letter-spacing: 0.04em;
+        font: 600 16px/1.4 var(--serif);
+        letter-spacing: 0.03em;
       }
 
       .user-report-badge {
-        padding: 3px 8px;
-        border-radius: 6px;
+        padding: 3px 10px;
+        border-radius: 4px;
         background: rgba(211, 168, 94, 0.15);
         color: #e5c178;
         font-size: 11px;
@@ -1379,41 +1378,34 @@
         margin-left: auto;
       }
 
-      .user-report-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 16px;
-      }
-
-      .report-item-box {
-        padding: 14px 16px;
-        border-radius: 10px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(211, 168, 94, 0.15);
-        transition: border-color 0.2s ease, transform 0.2s ease;
-      }
-
-      .report-item-box:hover {
-        border-color: rgba(211, 168, 94, 0.4);
-        transform: translateY(-2px);
-      }
-
-      .report-item-title {
+      .user-report-body {
         display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
-        color: #e8d7bb;
-        font-size: 14px;
-        font-weight: 600;
+        flex-direction: column;
+        gap: 18px;
       }
 
-      .report-item-body {
+      .report-section-block {
+        padding: 12px 16px;
+        border-left: 3px solid rgba(211, 168, 94, 0.5);
+        background: rgba(255, 255, 255, 0.015);
+        border-radius: 0 8px 8px 0;
+      }
+
+      .report-section-title {
+        margin: 0 0 6px 0;
+        color: #e8d7bb;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+
+      .report-section-text {
         margin: 0;
-        color: #c0c6cc;
-        font-size: 13px;
-        line-height: 1.65;
+        color: #d0d6dc;
+        font-size: 14px;
+        line-height: 1.75;
         text-align: justify;
+        white-space: pre-line;
       }
 
       .pipeline-nodes-container {
@@ -2512,12 +2504,12 @@
                 <p class="ai-limit" id="ai-limit"></p>
 
                 <!-- 通俗解盘报告 (1000字精炼版) 位于最下方 -->
-                <div class="user-report-card" id="user-report-card">
+                <div class="user-report-container" id="user-report-container">
                   <div class="user-report-header">
-                    <h3>📜 通俗解盘报告 (精炼大白话版)</h3>
+                    <h3>通俗解盘报告（精炼大白话版）</h3>
                     <span class="user-report-badge">1000字内 · 通俗易懂</span>
                   </div>
-                  <div class="user-report-grid" id="user-report-grid"></div>
+                  <div class="user-report-body" id="user-report-body"></div>
                 </div>
               </div>
 
@@ -3477,54 +3469,54 @@
 
         aiLimit.textContent = "边界：" + reading.limitations;
 
-        // 渲染最下方的通俗解盘报告 (1000字精炼版，带极速兜底确保绝不空框)
-        function buildFallbackUserReport(readingData) {
-          const summaryText = readingData?.summary || "原局五行与干支结构特征说明。";
-          const sections = Array.isArray(readingData?.sections) ? readingData.sections : [];
+        // 渲染最下方的通俗解盘报告 (直接显示AI文字内容，分段解读，无emoji无卡片)
+        const userReportBody = document.getElementById("user-report-body");
+        if (userReportBody) {
+          const reportData = reading.userReport || {
+            corePortrait: reading.summary || "性格底色较为沉稳内敛，做事有韧性不服输，注重规则与内在安全感。",
+            career: "适合在专业领域深耕，重在承担责任与发挥个人技术优势，宜稳扎稳打。",
+            relationship: "感情中重视沟通与彼此尊重，需平衡好自我掌控欲与包容心。",
+            health: "平时宜多注意作息调养，劳逸结合，保持水充沛与适度运动。",
+            wealth: "财运稳健为主，宜理性理财、控制风险杠杆，积累现金流。",
+            currentStage: "当前阶段重在明确主线目标，不急于求成，多蓄力提升自身认知。",
+          };
 
-          const findSectionText = (keywords, defaultVal) => {
-            const sec = sections.find((s) =>
-              keywords.some((kw) => (s.title && s.title.includes(kw)) || (s.body && s.body.includes(kw)))
+          if (typeof reportData === "string") {
+            const block = document.createElement("div");
+            block.className = "report-section-block";
+            const p = document.createElement("p");
+            p.className = "report-section-text";
+            p.textContent = reportData;
+            block.append(p);
+            userReportBody.replaceChildren(block);
+          } else {
+            const sectionDefs = [
+              { key: "corePortrait", label: "核心画像" },
+              { key: "career", label: "事业发展模式" },
+              { key: "relationship", label: "感情与婚姻" },
+              { key: "health", label: "健康状况" },
+              { key: "wealth", label: "财运分析" },
+              { key: "currentStage", label: "当前人生阶段建议" },
+            ];
+
+            userReportBody.replaceChildren(
+              ...sectionDefs.map(({ key, label }) => {
+                const block = document.createElement("div");
+                block.className = "report-section-block";
+
+                const title = document.createElement("h4");
+                title.className = "report-section-title";
+                title.textContent = label;
+
+                const p = document.createElement("p");
+                p.className = "report-section-text";
+                p.textContent = reportData[key] || "暂无解读说明";
+
+                block.append(title, p);
+                return block;
+              })
             );
-            return sec && sec.body ? sec.body : defaultVal;
-          };
-
-          return {
-            corePortrait: summaryText || "性格底色较为沉稳内敛，做事有韧性不服输，注重规则与内在安全感。",
-            career: findSectionText(["事业", "工作", "日主", "十神"], "事业发展重在专业领域深耕，承担责任与发挥个人技术优势，宜稳扎稳打。"),
-            relationship: findSectionText(["感情", "婚姻", "夫妻", "日支"], "感情中重视沟通与彼此尊重，需平衡好自我掌控欲与包容心。"),
-            health: findSectionText(["健康", "五行", "体质"], "平时宜多注意作息调养，劳逸结合，保持水分充沛与适度运动。"),
-            wealth: findSectionText(["财", "资源", "偏财", "正财"], "财运稳健为主，宜理性理财、控制风险杠杆，积累现金流。"),
-            currentStage: findSectionText(["阶段", "提问", "观察"], "当前阶段重在明确主线目标，不急于求成，多蓄力提升自身认知。"),
-          };
-        }
-
-        const userReportGrid = document.getElementById("user-report-grid");
-        if (userReportGrid) {
-          const fallbackDefaults = buildFallbackUserReport(reading);
-          const reportData = (reading && reading.userReport) ? reading.userReport : fallbackDefaults;
-
-          const reportConfig = [
-            { key: "corePortrait", icon: "💡", label: "核心画像" },
-            { key: "career", icon: "🚀", label: "事业发展模式" },
-            { key: "relationship", icon: "💗", label: "感情与婚姻" },
-            { key: "health", icon: "🌿", label: "健康状况" },
-            { key: "wealth", icon: "💰", label: "财运分析" },
-            { key: "currentStage", icon: "🎯", label: "当前人生阶段建议" },
-          ];
-
-          userReportGrid.replaceChildren(
-            ...reportConfig.map(({ key, icon, label }) => {
-              const box = document.createElement("div");
-              box.className = "report-item-box";
-              const content = reportData[key] || fallbackDefaults[key] || "暂无解读说明";
-              box.innerHTML = `
-                <div class="report-item-title"><span>${icon}</span> ${label}</div>
-                <p class="report-item-body">${content}</p>
-              `;
-              return box;
-            })
-          );
+          }
         }
 
         document.getElementById("ai-provenance").textContent =
