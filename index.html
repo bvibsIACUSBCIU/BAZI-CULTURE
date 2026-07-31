@@ -1343,6 +1343,79 @@
         font-size: 10px;
       }
 
+      /* Plain-Language User Report Card (Bottom) */
+      .user-report-card {
+        margin-top: 24px;
+        padding: 20px 22px;
+        border: 1px solid rgba(211, 168, 94, 0.35);
+        border-radius: 14px;
+        background: linear-gradient(180deg, rgba(25, 32, 44, 0.85) 0%, rgba(15, 20, 28, 0.95) 100%);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      }
+
+      .user-report-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid rgba(211, 168, 94, 0.2);
+      }
+
+      .user-report-header h3 {
+        margin: 0;
+        color: #f0cb82;
+        font: 600 16px/1.3 var(--serif);
+        letter-spacing: 0.04em;
+      }
+
+      .user-report-badge {
+        padding: 3px 8px;
+        border-radius: 6px;
+        background: rgba(211, 168, 94, 0.15);
+        color: #e5c178;
+        font-size: 11px;
+        font-weight: 500;
+        margin-left: auto;
+      }
+
+      .user-report-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+      }
+
+      .report-item-box {
+        padding: 14px 16px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(211, 168, 94, 0.15);
+        transition: border-color 0.2s ease, transform 0.2s ease;
+      }
+
+      .report-item-box:hover {
+        border-color: rgba(211, 168, 94, 0.4);
+        transform: translateY(-2px);
+      }
+
+      .report-item-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+        color: #e8d7bb;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .report-item-body {
+        margin: 0;
+        color: #c0c6cc;
+        font-size: 13px;
+        line-height: 1.65;
+        text-align: justify;
+      }
+
       .pipeline-nodes-container {
         display: grid;
         gap: 10px;
@@ -2422,14 +2495,13 @@
               <div class="ai-output" id="ai-output" hidden>
                 <p class="topic-meta" id="topic-meta"></p>
 
-                <details class="agent-pipeline-card" id="agent-pipeline-card" open>
-                  <summary class="agent-pipeline-summary">
+                <div class="agent-pipeline-card" id="agent-pipeline-card">
+                  <div class="agent-pipeline-summary">
                     <span class="pipeline-badge-tag">TIANFU MULTI-AGENT PIPELINE</span>
                     <strong>推演步骤与 Agent 角色链 (5/5 已完成)</strong>
-                    <span class="pipeline-toggle-hint">展开/折叠</span>
-                  </summary>
+                  </div>
                   <div class="pipeline-nodes-container" id="pipeline-nodes-container"></div>
-                </details>
+                </div>
 
                 <p class="ai-summary" id="ai-summary"></p>
                 <div class="ai-sections" id="ai-sections"></div>
@@ -2438,6 +2510,15 @@
                   <ol class="reflection-list" id="reflection-list"></ol>
                 </div>
                 <p class="ai-limit" id="ai-limit"></p>
+
+                <!-- 通俗解盘报告 (1000字精炼版) 位于最下方 -->
+                <div class="user-report-card" id="user-report-card">
+                  <div class="user-report-header">
+                    <h3>📜 通俗解盘报告 (精炼大白话版)</h3>
+                    <span class="user-report-badge">1000字内 · 通俗易懂</span>
+                  </div>
+                  <div class="user-report-grid" id="user-report-grid"></div>
+                </div>
               </div>
 
               <div class="question-area" id="question-area" hidden>
@@ -2850,12 +2931,22 @@
           if (loadingStepsFlow) loadingStepsFlow.replaceChildren();
         }
 
+        let apiFinished = false;
+        let apiErrorObj = null;
+
         // 发起后台 API 计算请求
         const apiPromise = postJson("/api/ai-report", {
           ...currentInput,
           question: String(question || "").trim(),
           previousReading,
           topic: currentTopic,
+        }).then((res) => {
+          apiFinished = true;
+          return res;
+        }).catch((err) => {
+          apiFinished = true;
+          apiErrorObj = err;
+          throw err;
         });
 
         // 多 Agent 思考过程内容库与定义
@@ -2878,9 +2969,8 @@
           `整合多 Agent 推演成果 ➔ 格式论证结构解读章节 ➔ 建立高亮交互 Fact Tag ➔ 生成完整解盘报告`
         ];
 
-        const STEP_INTERVAL_MS = 6500; // 每步骤 6.5 秒平滑递进（满足 6-15s 要求）
-
-        for (let idx = 0; idx < 5; idx++) {
+        // 步骤 1 至 4：平滑过渡
+        for (let idx = 0; idx < 4; idx++) {
           const stepNum = idx + 1;
           const currentAgent = agentDefs[idx];
 
@@ -2889,7 +2979,6 @@
           }
           aiButton.textContent = `[${stepNum}/5] ${currentAgent.agent} 深度思考中…`;
 
-          // 1. 不提前显示 01 ➔ 05：运行到该步骤时动态插入该步骤 DOM
           const stepNode = document.createElement("div");
           stepNode.className = "loading-step-item is-active";
           stepNode.id = `step-node-${stepNum}`;
@@ -2906,11 +2995,10 @@
             stepNode.scrollIntoView({ behavior: "smooth", block: "nearest" });
           }
 
-          // 2. 动态打字/省略号动画 (思考中......)
           const thinkingEl = stepNode.querySelector(`#step-thinking-${stepNum}`);
           let dotCount = 1;
           const baseThinkingText = thinkingSteps[idx];
-          
+
           if (activeDotsInterval) clearInterval(activeDotsInterval);
           activeDotsInterval = setInterval(() => {
             dotCount = (dotCount % 6) + 1;
@@ -2920,20 +3008,18 @@
             }
           }, 400);
 
-          // 3. 保持 6.5s 步骤平滑等待
+          const waitMs = apiFinished ? 150 : 2500;
           await new Promise((resolve) => {
-            const timer = setTimeout(resolve, STEP_INTERVAL_MS);
+            const timer = setTimeout(resolve, waitMs);
             agentStepTimers.push(timer);
           });
 
-          // 步骤完成：停止当前打字动画，标记已完成并展开输出结论
           if (activeDotsInterval) {
             clearInterval(activeDotsInterval);
             activeDotsInterval = null;
           }
           stepNode.classList.remove("is-active");
           stepNode.classList.add("is-done");
-          
           const descEl = stepNode.querySelector(`#step-desc-${stepNum}`);
           if (descEl) {
             descEl.textContent = `✓ 已完成数据处理，传递输出给下一级 Agent`;
@@ -2941,36 +3027,107 @@
           if (thinkingEl) {
             thinkingEl.innerHTML = `思考过程：${baseThinkingText}`;
           }
+
+          if (apiErrorObj) break;
         }
 
-        try {
-          const payload = await apiPromise;
-          if (payload?.ai?.agent?.fallback) {
-            console.error("[AI Generation Fallback Info]", payload.ai.agent.fallback);
+        // 步骤 5：Writer Agent (报告生成)，在 apiPromise 正式 resolve 之前保持 is-active 思考中，不提前标为完成！
+        if (!apiErrorObj) {
+          const stepNum = 5;
+          const currentAgent = agentDefs[4];
+          if (loadingStageBadge) {
+            loadingStageBadge.textContent = `5/5 ${currentAgent.agent}`;
           }
-          previousReading = payload.ai.text;
-          renderAi(payload.ai.reading, payload.ai.agent);
+          aiButton.textContent = `[5/5] ${currentAgent.agent} 报告生成中…`;
 
-          // Task 5: 将 intentPicker 转化为顶部的 Tab 分段切换器（Segmented Tabs）
-          intentPicker.classList.add("segmented-mode");
-          intentPicker.hidden = false;
-          updateSegmentedTabsActiveState(currentTopic, isQuestion);
+          const stepNode = document.createElement("div");
+          stepNode.className = "loading-step-item is-active";
+          stepNode.id = `step-node-5`;
+          stepNode.innerHTML = `
+            <span class="step-num">5</span>
+            <div class="step-content">
+              <strong class="step-role-title">${currentAgent.agent} · ${currentAgent.roleName}</strong>
+              <small id="step-desc-5">${currentAgent.defaultDesc}</small>
+              <div class="step-thinking-text" id="step-thinking-5"></div>
+            </div>
+          `;
+          if (loadingStepsFlow) {
+            loadingStepsFlow.appendChild(stepNode);
+            stepNode.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }
 
+          const thinkingEl = stepNode.querySelector(`#step-thinking-5`);
+          let dotCount = 1;
+          const baseThinkingText = thinkingSteps[4];
+
+          if (activeDotsInterval) clearInterval(activeDotsInterval);
+          activeDotsInterval = setInterval(() => {
+            dotCount = (dotCount % 6) + 1;
+            const dots = ".".repeat(dotCount);
+            if (thinkingEl) {
+              thinkingEl.innerHTML = `Agent 思考中 <span class="dots-holder">${dots}</span> ${baseThinkingText}`;
+            }
+          }, 400);
+
+          try {
+            const payload = await apiPromise; // 真正的后台请求完成！
+
+            if (activeDotsInterval) {
+              clearInterval(activeDotsInterval);
+              activeDotsInterval = null;
+            }
+            stepNode.classList.remove("is-active");
+            stepNode.classList.add("is-done");
+            const descEl = stepNode.querySelector(`#step-desc-5`);
+            if (descEl) {
+              descEl.textContent = `✓ 已完成通俗解盘报告与多维证据校验`;
+            }
+            if (thinkingEl) {
+              thinkingEl.innerHTML = `思考过程：${baseThinkingText}`;
+            }
+
+            if (payload?.ai?.agent?.fallback) {
+              console.error("[AI Generation Fallback Info]", payload.ai.agent.fallback);
+            }
+            previousReading = payload.ai.text;
+            renderAi(payload.ai.reading, payload.ai.agent);
+
+            intentPicker.classList.add("segmented-mode");
+            intentPicker.hidden = false;
+            updateSegmentedTabsActiveState(currentTopic, isQuestion);
+
+            if (agentLoadingCard) agentLoadingCard.hidden = true;
+            aiOutput.hidden = false;
+            questionArea.hidden = false;
+            feedbackPanel.hidden = false;
+            feedbackStatus.textContent = "";
+            questionInput.value = "";
+            trackEvent("ai_generated", {
+              choice: isQuestion ? "question" : currentTopic,
+              demo: currentIsDemo,
+            });
+          } catch (error) {
+            if (activeDotsInterval) {
+              clearInterval(activeDotsInterval);
+              activeDotsInterval = null;
+            }
+            stepNode.classList.remove("is-active");
+            stepNode.classList.add("is-error");
+            if (thinkingEl) {
+              thinkingEl.innerHTML = `<span style="color: #e53e3e;">生成失败：${error.message || "请求超时或网络异常"}</span>`;
+            }
+            console.error("[AI Generation Failure]", error);
+            if (agentLoadingCard) agentLoadingCard.hidden = true;
+            setError(aiError, error.message || "AI 解读暂时不可用。");
+          } finally {
+            clearStepTimers();
+            setAiLoading(false);
+            cosmos.classList.remove("is-loading");
+            aiButton.innerHTML = aiButtonDefaultMarkup;
+          }
+        } else {
           if (agentLoadingCard) agentLoadingCard.hidden = true;
-          aiOutput.hidden = false;
-          questionArea.hidden = false;
-          feedbackPanel.hidden = false;
-          feedbackStatus.textContent = "";
-          questionInput.value = "";
-          trackEvent("ai_generated", {
-            choice: isQuestion ? "question" : currentTopic,
-            demo: currentIsDemo,
-          });
-        } catch (error) {
-          console.error("[AI Generation Failure]", error);
-          if (agentLoadingCard) agentLoadingCard.hidden = true;
-          setError(aiError, error.message || "AI 解读暂时不可用。");
-        } finally {
+          setError(aiError, apiErrorObj?.message || "AI 解读暂时不可用。");
           clearStepTimers();
           setAiLoading(false);
           cosmos.classList.remove("is-loading");
@@ -3319,6 +3476,32 @@
         reflectionList.replaceChildren(reflectionContainer);
 
         aiLimit.textContent = "边界：" + reading.limitations;
+
+        // 渲染最下方的通俗解盘报告 (1000字精炼版)
+        const userReportGrid = document.getElementById("user-report-grid");
+        if (userReportGrid && reading.userReport) {
+          const reportConfig = [
+            { key: "corePortrait", icon: "💡", label: "核心画像" },
+            { key: "career", icon: "🚀", label: "事业发展模式" },
+            { key: "relationship", icon: "💗", label: "感情与婚姻" },
+            { key: "health", icon: "🌿", label: "健康状况" },
+            { key: "wealth", icon: "💰", label: "财运分析" },
+            { key: "currentStage", icon: "🎯", label: "当前人生阶段建议" },
+          ];
+          userReportGrid.replaceChildren(
+            ...reportConfig.map(({ key, icon, label }) => {
+              const box = document.createElement("div");
+              box.className = "report-item-box";
+              const content = reading.userReport[key] || "暂无解读说明";
+              box.innerHTML = `
+                <div class="report-item-title"><span>${icon}</span> ${label}</div>
+                <p class="report-item-body">${content}</p>
+              `;
+              return box;
+            })
+          );
+        }
+
         document.getElementById("ai-provenance").textContent =
           agent?.fallback?.active
             ? "程序计算 · AI 本轮未完成 · 已返回安全结构版"

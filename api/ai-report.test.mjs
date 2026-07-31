@@ -54,6 +54,14 @@ const READING = {
   ],
   reflectionQuestions: ["你认为哪些描述与自己的实际经验相符，哪些并不相符？"],
   limitations: "这是 AI 测试版文化解释，不用于医疗、投资、法律或其他重大人生决定。",
+  userReport: {
+    corePortrait: "性格底色较为沉稳内敛，做事有韧性不服输，注重规则与内在安全感。",
+    career: "适合在专业领域深耕，重在承担责任与发挥个人技术优势，宜稳扎稳打。",
+    relationship: "感情中重视沟通与彼此尊重，需平衡好自我掌控欲与包容心。",
+    health: "平时宜多注意作息调养，劳逸结合，保持水充沛与适度运动。",
+    wealth: "财运稳健为主，宜理性理财、控制风险杠杆，积累现金流。",
+    currentStage: "当前阶段重在明确主线目标，不急于求成，多蓄力提升自身认知。",
+  },
 };
 
 test("AI report endpoint requires consent", async () => {
