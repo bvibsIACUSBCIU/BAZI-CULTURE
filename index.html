@@ -3477,9 +3477,33 @@
 
         aiLimit.textContent = "边界：" + reading.limitations;
 
-        // 渲染最下方的通俗解盘报告 (1000字精炼版)
+        // 渲染最下方的通俗解盘报告 (1000字精炼版，带极速兜底确保绝不空框)
+        function buildFallbackUserReport(readingData) {
+          const summaryText = readingData?.summary || "原局五行与干支结构特征说明。";
+          const sections = Array.isArray(readingData?.sections) ? readingData.sections : [];
+
+          const findSectionText = (keywords, defaultVal) => {
+            const sec = sections.find((s) =>
+              keywords.some((kw) => (s.title && s.title.includes(kw)) || (s.body && s.body.includes(kw)))
+            );
+            return sec && sec.body ? sec.body : defaultVal;
+          };
+
+          return {
+            corePortrait: summaryText || "性格底色较为沉稳内敛，做事有韧性不服输，注重规则与内在安全感。",
+            career: findSectionText(["事业", "工作", "日主", "十神"], "事业发展重在专业领域深耕，承担责任与发挥个人技术优势，宜稳扎稳打。"),
+            relationship: findSectionText(["感情", "婚姻", "夫妻", "日支"], "感情中重视沟通与彼此尊重，需平衡好自我掌控欲与包容心。"),
+            health: findSectionText(["健康", "五行", "体质"], "平时宜多注意作息调养，劳逸结合，保持水分充沛与适度运动。"),
+            wealth: findSectionText(["财", "资源", "偏财", "正财"], "财运稳健为主，宜理性理财、控制风险杠杆，积累现金流。"),
+            currentStage: findSectionText(["阶段", "提问", "观察"], "当前阶段重在明确主线目标，不急于求成，多蓄力提升自身认知。"),
+          };
+        }
+
         const userReportGrid = document.getElementById("user-report-grid");
-        if (userReportGrid && reading.userReport) {
+        if (userReportGrid) {
+          const fallbackDefaults = buildFallbackUserReport(reading);
+          const reportData = (reading && reading.userReport) ? reading.userReport : fallbackDefaults;
+
           const reportConfig = [
             { key: "corePortrait", icon: "💡", label: "核心画像" },
             { key: "career", icon: "🚀", label: "事业发展模式" },
@@ -3488,11 +3512,12 @@
             { key: "wealth", icon: "💰", label: "财运分析" },
             { key: "currentStage", icon: "🎯", label: "当前人生阶段建议" },
           ];
+
           userReportGrid.replaceChildren(
             ...reportConfig.map(({ key, icon, label }) => {
               const box = document.createElement("div");
               box.className = "report-item-box";
-              const content = reading.userReport[key] || "暂无解读说明";
+              const content = reportData[key] || fallbackDefaults[key] || "暂无解读说明";
               box.innerHTML = `
                 <div class="report-item-title"><span>${icon}</span> ${label}</div>
                 <p class="report-item-body">${content}</p>
