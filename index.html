@@ -1343,11 +1343,11 @@
         font-size: 10px;
       }
 
-      /* Plain-Language User Report Container (Bottom, Segmented Text, No Cards, No Emojis) */
+      /* Plain-Language User Report Container (1500 Words, Markdown Text, Copy, Collapsible) */
       .user-report-container {
         margin-top: 24px;
         padding: 24px 26px;
-        border: 1px solid rgba(211, 168, 94, 0.3);
+        border: 1px solid rgba(211, 168, 94, 0.25);
         border-radius: 12px;
         background: rgba(17, 24, 32, 0.85);
       }
@@ -1356,7 +1356,7 @@
         display: flex;
         align-items: center;
         gap: 12px;
-        margin-bottom: 20px;
+        margin-bottom: 18px;
         padding-bottom: 14px;
         border-bottom: 1px solid rgba(211, 168, 94, 0.2);
       }
@@ -1364,7 +1364,7 @@
       .user-report-header h3 {
         margin: 0;
         color: #f0cb82;
-        font: 600 16px/1.4 var(--serif);
+        font: 600 17px/1.4 var(--serif);
         letter-spacing: 0.03em;
       }
 
@@ -1375,37 +1375,106 @@
         color: #e5c178;
         font-size: 11px;
         font-weight: 500;
+      }
+
+      .copy-report-btn {
         margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border: 1px solid rgba(211, 168, 94, 0.35);
+        border-radius: 6px;
+        background: rgba(211, 168, 94, 0.12);
+        color: #f0cb82;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .copy-report-btn:hover {
+        background: rgba(211, 168, 94, 0.25);
+        border-color: rgba(211, 168, 94, 0.6);
+        color: #fff;
+      }
+
+      .user-report-wrapper {
+        position: relative;
+        transition: max-height 0.3s ease;
+      }
+
+      .user-report-wrapper.is-collapsed {
+        max-height: 280px;
+        overflow: hidden;
+      }
+
+      .report-gradient-overlay {
+        display: none;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 120px;
+        background: linear-gradient(180deg, rgba(17, 24, 32, 0) 0%, rgba(17, 24, 32, 0.98) 100%);
+        pointer-events: none;
+      }
+
+      .user-report-wrapper.is-collapsed .report-gradient-overlay {
+        display: block;
       }
 
       .user-report-body {
         display: flex;
         flex-direction: column;
-        gap: 18px;
+        gap: 20px;
       }
 
       .report-section-block {
-        padding: 12px 16px;
-        border-left: 3px solid rgba(211, 168, 94, 0.5);
-        background: rgba(255, 255, 255, 0.015);
-        border-radius: 0 8px 8px 0;
+        margin: 0;
+        padding: 0;
+        border: none;
+        background: transparent;
       }
 
       .report-section-title {
-        margin: 0 0 6px 0;
+        margin: 0 0 8px 0;
         color: #e8d7bb;
-        font-size: 15px;
+        font-size: 16px;
         font-weight: 600;
         letter-spacing: 0.02em;
       }
 
       .report-section-text {
         margin: 0;
-        color: #d0d6dc;
+        color: #c8ced4;
         font-size: 14px;
-        line-height: 1.75;
+        line-height: 1.8;
         text-align: justify;
         white-space: pre-line;
+      }
+
+      .user-report-footer {
+        margin-top: 16px;
+        display: flex;
+        justify-content: center;
+      }
+
+      .toggle-report-btn {
+        padding: 8px 24px;
+        border: 1px solid rgba(211, 168, 94, 0.3);
+        border-radius: 20px;
+        background: rgba(211, 168, 94, 0.1);
+        color: #f0cb82;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .toggle-report-btn:hover {
+        background: rgba(211, 168, 94, 0.2);
+        border-color: rgba(211, 168, 94, 0.5);
       }
 
       .pipeline-nodes-container {
@@ -2503,13 +2572,28 @@
                 </div>
                 <p class="ai-limit" id="ai-limit"></p>
 
-                <!-- 通俗解盘报告 (1000字精炼版) 位于最下方 -->
+                <!-- 通俗解盘报告 (1500字, 可复制, 默认折叠, 一键展开) -->
                 <div class="user-report-container" id="user-report-container">
                   <div class="user-report-header">
-                    <h3>通俗解盘报告（精炼大白话版）</h3>
-                    <span class="user-report-badge">1000字内 · 通俗易懂</span>
+                    <h3>解盘报告</h3>
+                    <span class="user-report-badge">1500字 · 完整解盘</span>
+                    <button class="copy-report-btn" id="copy-report-btn" type="button" title="复制完整 Markdown 报告">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                      </svg>
+                      一键复制
+                    </button>
                   </div>
-                  <div class="user-report-body" id="user-report-body"></div>
+                  <div class="user-report-wrapper is-collapsed" id="user-report-wrapper">
+                    <div class="user-report-body" id="user-report-body"></div>
+                    <div class="report-gradient-overlay" id="report-gradient-overlay"></div>
+                  </div>
+                  <div class="user-report-footer">
+                    <button class="toggle-report-btn" id="toggle-report-btn" type="button">
+                      点击展开完整报告 (约1500字) ↓
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -3469,19 +3553,26 @@
 
         aiLimit.textContent = "边界：" + reading.limitations;
 
-        // 渲染最下方的通俗解盘报告 (直接显示AI文字内容，分段解读，无emoji无卡片)
+        // 渲染最下方的通俗解盘报告 (直接显示AI文字内容，Markdown格式，可一键复制，默认折叠)
         const userReportBody = document.getElementById("user-report-body");
+        const userReportWrapper = document.getElementById("user-report-wrapper");
+        const toggleBtn = document.getElementById("toggle-report-btn");
+        const copyBtn = document.getElementById("copy-report-btn");
+
+        let currentMarkdownReport = "";
+
         if (userReportBody) {
           const reportData = reading.userReport || {
-            corePortrait: reading.summary || "性格底色较为沉稳内敛，做事有韧性不服输，注重规则与内在安全感。",
-            career: "适合在专业领域深耕，重在承担责任与发挥个人技术优势，宜稳扎稳打。",
-            relationship: "感情中重视沟通与彼此尊重，需平衡好自我掌控欲与包容心。",
-            health: "平时宜多注意作息调养，劳逸结合，保持水充沛与适度运动。",
-            wealth: "财运稳健为主，宜理性理财、控制风险杠杆，积累现金流。",
-            currentStage: "当前阶段重在明确主线目标，不急于求成，多蓄力提升自身认知。",
+            corePortrait: "性格底色较为沉稳内敛，做事有韧性不服输，注重规则与内在安全感。外表可能比实际内心更沉稳，给人一种值得信赖的印象。在面对压力和挑战时，习惯先自行消化并寻找系统性解法，喜怒不形于色，自我要求较高，不愿轻易认输。",
+            career: "在事业发展上具备极强的能扛事特质，能够将外部压力转化为提升自我和获取资源的动力。适合在具备确定性专业门槛的领域持续深耕，注重技术与经验的沉淀。不宜盲目寻求短期合伙或无保障的扩张，稳扎稳打、依靠专业实力建立口碑是最佳发展路径。",
+            relationship: "感情中重视深层的安全感与彼此尊重。表面上具有较强的掌控欲与独立主张，但内心渴望被关怀与理解。在亲密关系中需要学会适度放下防备与强硬姿态，学会倾听与软化沟通方式，保持平等的双向互动会使婚姻感情更加融洽稳固。",
+            health: "先天底子尚可，但需要注意长期精神压力带来的内在损耗。建议日常生活中特别注意水水分补充与作息规律，防范泌尿生殖系统与肝胆功能的疲劳积累。同时心血管与循环功能易受气血起伏影响，切忌仗着年轻而长期熬夜或透支体能。",
+            wealth: "财运模式以稳健积累和靠专业技术获利为主。赚钱求财时偏向稳扎稳打，能够抓住切实的机会，但在资产留存与积累方面需要增强风控意识。建议远离高风险投机与高杠杆操作，守好现金流，做好长远理财规划。",
+            currentStage: "当前人生阶段处于奠定根基的关键期。最重要的事情在于明确主线发展方向，不宜因为短期波动而频繁摇摆。建议专注于自身核心竞争力的积累，同时管理好人际合作边界，重视健康养护，为未来的爆发做好蓄力准备。",
           };
 
           if (typeof reportData === "string") {
+            currentMarkdownReport = reportData;
             const block = document.createElement("div");
             block.className = "report-section-block";
             const p = document.createElement("p");
@@ -3498,6 +3589,10 @@
               { key: "wealth", label: "财运分析" },
               { key: "currentStage", label: "当前人生阶段建议" },
             ];
+
+            currentMarkdownReport = sectionDefs
+              .map(({ key, label }) => `### ${label}\n\n${reportData[key] || "暂无解读说明"}`)
+              .join("\n\n");
 
             userReportBody.replaceChildren(
               ...sectionDefs.map(({ key, label }) => {
@@ -3517,6 +3612,40 @@
               })
             );
           }
+        }
+
+        // 默认恢复折叠状态
+        if (userReportWrapper && toggleBtn) {
+          userReportWrapper.classList.add("is-collapsed");
+          toggleBtn.textContent = "点击展开完整报告 (约1500字) ↓";
+
+          toggleBtn.onclick = () => {
+            const isCollapsed = userReportWrapper.classList.contains("is-collapsed");
+            if (isCollapsed) {
+              userReportWrapper.classList.remove("is-collapsed");
+              toggleBtn.textContent = "折叠报告 ↑";
+            } else {
+              userReportWrapper.classList.add("is-collapsed");
+              toggleBtn.textContent = "点击展开完整报告 (约1500字) ↓";
+              document.getElementById("user-report-container")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          };
+        }
+
+        // 一键复制 Markdown 报告
+        if (copyBtn) {
+          copyBtn.onclick = () => {
+            if (!currentMarkdownReport) return;
+            navigator.clipboard.writeText(currentMarkdownReport).then(() => {
+              const defaultMarkup = copyBtn.innerHTML;
+              copyBtn.innerHTML = "✓ 已复制到剪贴板";
+              setTimeout(() => {
+                copyBtn.innerHTML = defaultMarkup;
+              }, 2000);
+            }).catch((err) => {
+              console.error("Copy report failed:", err);
+            });
+          };
         }
 
         document.getElementById("ai-provenance").textContent =
