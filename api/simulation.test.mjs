@@ -77,14 +77,11 @@ test("SIMULATION 1: End-to-End AI report pipeline with Markdown formatting", asy
   const report = responsePayload.ai.reading.userReport;
   const fullText = Object.values(report).join("\n\n");
 
-  // Verify non-empty and target word count (>= 600 chars in simulation fixture)
   assert.ok(fullText.length >= 600, `Expected full text length >= 600, got ${fullText.length}`);
-
-  // Emojis check: verify no emojis present anywhere in the report payload
   assert.doesNotMatch(JSON.stringify(responsePayload.ai.reading), /[💡🚀💗🌿💰🎯📜✨]/u);
 });
 
-test("SIMULATION 2: Fallback mode 1500-word Markdown report verification", async () => {
+test("SIMULATION 2: Fallback mode 2500+ word Markdown report verification", async () => {
   const chart = await calculateBazi({ date: "1995-05-20", time: "10:00" });
   const fallbackResult = buildFallbackAiResult({
     chart,
@@ -100,12 +97,11 @@ test("SIMULATION 2: Fallback mode 1500-word Markdown report verification", async
   
   for (const key of sectionKeys) {
     assert.ok(userReport[key], `Section ${key} should not be empty`);
-    assert.ok(userReport[key].length > 50, `Section ${key} should contain detailed text`);
+    assert.ok(userReport[key].length > 150, `Section ${key} should contain deep text (got ${userReport[key].length})`);
   }
 
   const combinedLength = Object.values(userReport).reduce((acc, text) => acc + text.length, 0);
-  assert.ok(combinedLength >= 600, `Fallback combined report length should be >= 600, got ${combinedLength}`);
+  assert.ok(combinedLength >= 2000, `Fallback combined report length should be >= 2000 Chinese chars, got ${combinedLength}`);
 
-  // Emojis check: verify zero emojis in fallback output
   assert.doesNotMatch(JSON.stringify(userReport), /[💡🚀💗🌿💰🎯📜✨]/u);
 });
