@@ -109,3 +109,18 @@ test("SIMULATION 2: Fallback mode 1500-word Markdown report verification", async
   // Emojis check: verify zero emojis in fallback output
   assert.doesNotMatch(JSON.stringify(userReport), /[💡🚀💗🌿💰🎯📜✨]/u);
 });
+
+test("SIMULATION 3: Verify different birth charts generate non-identical dynamic reports", async () => {
+  const chartA = await calculateBazi({ date: "1995-05-20", time: "10:00" });
+  const chartB = await calculateBazi({ date: "1988-11-11", time: "14:30" });
+
+  const resultA = buildFallbackAiResult({ chart: chartA, topic: "overview" });
+  const resultB = buildFallbackAiResult({ chart: chartB, topic: "overview" });
+
+  const reportA = JSON.stringify(resultA.reading.userReport);
+  const reportB = JSON.stringify(resultB.reading.userReport);
+
+  assert.notEqual(reportA, reportB, "Reports for different charts must not be identical");
+  assert.ok(reportA.includes(chartA.dayMaster.stem), "Report A should mention chart A day master");
+  assert.ok(reportB.includes(chartB.dayMaster.stem), "Report B should mention chart B day master");
+});
