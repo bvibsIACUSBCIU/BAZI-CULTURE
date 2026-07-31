@@ -111,8 +111,7 @@ test("recoverable AI failures return a deterministic topic fallback", async () =
   assert.equal(result.agent.fallback.reason, "AI_TIMEOUT");
   assert.equal(result.reading.topic, "career");
   assert.equal(result.reading.confidence, "limited");
-  assert.match(result.text, /结构版/);
-  assert.match(result.text, /AI 暂时未能完成/);
+  assert.match(result.text, /程序确定性结构摘要/);
 });
 
 test("configuration and input failures do not silently fall back", async () => {

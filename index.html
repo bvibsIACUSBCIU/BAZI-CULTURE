@@ -1263,14 +1263,25 @@
 
       .step-thinking-text {
         margin-top: 6px;
-        padding: 5px 9px;
+        padding: 6px 10px;
         border-radius: 6px;
         background: rgba(0, 0, 0, 0.35);
         color: #c9b48c;
         font-size: 11px;
-        line-height: 1.5;
+        line-height: 1.55;
         border-left: 2px solid #d3a85e;
         display: none;
+        min-height: 36px;
+        box-sizing: border-box;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .dots-holder {
+        display: inline-block;
+        min-width: 32px;
+        color: #d3a85e;
+        font-weight: 600;
+        letter-spacing: 0.08em;
       }
 
       .loading-step-item.is-active .step-thinking-text,
@@ -2401,51 +2412,10 @@
               <div class="agent-loading-card" id="agent-loading-card" hidden>
                 <div class="loading-header">
                   <div class="loading-pulse-ring"></div>
-                  <strong>多 Agent 联调推演中… (逐阶段深度思考)</strong>
+                  <strong>多 Agent 顺序协同推演中…</strong>
                   <span class="loading-stage-badge" id="loading-stage-badge">1/5 Coordinator Agent</span>
                 </div>
-                <div class="loading-steps-flow">
-                  <div class="loading-step-item" id="step-node-1">
-                    <span class="step-num">1</span>
-                    <div class="step-content">
-                      <strong class="step-role-title">Coordinator Agent · 协调引擎</strong>
-                      <small id="step-desc-1">解析研读意图与策略分派…</small>
-                      <div class="step-thinking-text" id="step-thinking-1"></div>
-                    </div>
-                  </div>
-                  <div class="loading-step-item" id="step-node-2">
-                    <span class="step-num">2</span>
-                    <div class="step-content">
-                      <strong class="step-role-title">Chart Agent · 排盘引擎</strong>
-                      <small id="step-desc-2">提取确定性四柱干支与藏干十神…</small>
-                      <div class="step-thinking-text" id="step-thinking-2"></div>
-                    </div>
-                  </div>
-                  <div class="loading-step-item" id="step-node-3">
-                    <span class="step-num">3</span>
-                    <div class="step-content">
-                      <strong class="step-role-title">Metaphysics Agent · 命理推演</strong>
-                      <small id="step-desc-3">检索已审核知识库规则…</small>
-                      <div class="step-thinking-text" id="step-thinking-3"></div>
-                    </div>
-                  </div>
-                  <div class="loading-step-item" id="step-node-4">
-                    <span class="step-num">4</span>
-                    <div class="step-content">
-                      <strong class="step-role-title">Validator Agent · 校验引擎</strong>
-                      <small id="step-desc-4">边界防错与防幻觉校验…</small>
-                      <div class="step-thinking-text" id="step-thinking-4"></div>
-                    </div>
-                  </div>
-                  <div class="loading-step-item" id="step-node-5">
-                    <span class="step-num">5</span>
-                    <div class="step-content">
-                      <strong class="step-role-title">Writer Agent · 报告生成</strong>
-                      <small id="step-desc-5">组织受约束结构化解读报告…</small>
-                      <div class="step-thinking-text" id="step-thinking-5"></div>
-                    </div>
-                  </div>
-                </div>
+                <div class="loading-steps-flow" id="loading-steps-flow"></div>
               </div>
               <div class="error" id="ai-error" role="alert"></div>
 
@@ -2851,39 +2821,19 @@
       }
 
       let agentStepTimers = [];
+      let activeDotsInterval = null;
       const agentLoadingCard = document.getElementById("agent-loading-card");
       const loadingStageBadge = document.getElementById("loading-stage-badge");
+      const loadingStepsFlow = document.getElementById("loading-steps-flow");
       const pipelineNodesContainer = document.getElementById("pipeline-nodes-container");
-
-      function resetLoadingSteps() {
-        for (let i = 1; i <= 5; i++) {
-          const item = document.getElementById(`step-node-${i}`);
-          if (item) item.classList.remove("is-active", "is-done");
-          const thinkingEl = document.getElementById(`step-thinking-${i}`);
-          if (thinkingEl) thinkingEl.textContent = "";
-        }
-      }
-
-      function runStepAnimation(stepIndex, badgeText) {
-        if (loadingStageBadge) loadingStageBadge.textContent = badgeText;
-        for (let i = 1; i <= 5; i++) {
-          const item = document.getElementById(`step-node-${i}`);
-          if (!item) continue;
-          if (i - 1 < stepIndex) {
-            item.classList.remove("is-active");
-            item.classList.add("is-done");
-          } else if (i - 1 === stepIndex) {
-            item.classList.add("is-active");
-            item.classList.remove("is-done");
-          } else {
-            item.classList.remove("is-active", "is-done");
-          }
-        }
-      }
 
       function clearStepTimers() {
         agentStepTimers.forEach((t) => clearTimeout(t));
         agentStepTimers = [];
+        if (activeDotsInterval) {
+          clearInterval(activeDotsInterval);
+          activeDotsInterval = null;
+        }
       }
 
       async function generateAi(question, topic = currentTopic) {
@@ -2897,7 +2847,7 @@
         aiOutput.hidden = true;
         if (agentLoadingCard) {
           agentLoadingCard.hidden = false;
-          resetLoadingSteps();
+          if (loadingStepsFlow) loadingStepsFlow.replaceChildren();
         }
 
         // 发起后台 API 计算请求
@@ -2908,41 +2858,96 @@
           topic: currentTopic,
         });
 
-        // 多 Agent 思考过程内容库（6-15秒间隔/步骤）
+        // 多 Agent 思考过程内容库与定义
         const topicLabels = { overview: "原局总览", career: "事业研读", wealth: "财富研读", relationship: "情感研读" };
         const topicName = topicLabels[currentTopic] || "原局总览";
 
+        const agentDefs = [
+          { id: "coordinator", agent: "Coordinator Agent", roleName: "协调引擎", badgeClass: "badge-coordinator", defaultDesc: "解析研读意图与策略分派…" },
+          { id: "chart", agent: "Chart Agent", roleName: "排盘引擎", badgeClass: "badge-chart", defaultDesc: "提取确定性四柱干支与藏干十神…" },
+          { id: "metaphysics", agent: "Metaphysics Agent", roleName: "命理推演", badgeClass: "badge-metaphysics", defaultDesc: "检索已审核知识库规则…" },
+          { id: "validator", agent: "Validator Agent", roleName: "校验引擎", badgeClass: "badge-validator", defaultDesc: "边界防错与防幻觉校验…" },
+          { id: "writer", agent: "Writer Agent", roleName: "报告生成", badgeClass: "badge-writer", defaultDesc: "组织受约束结构化解读报告…" },
+        ];
+
         const thinkingSteps = [
           `分析研读请求 ➔ 确认目标主题 [${topicName}] ➔ 检查历法算力引擎 ➔ 分派指令至 Chart Agent`,
-          `运行确定性历法引擎 ➔ 提取四柱干支与日主五行 ➔ 盘点藏干主气副气十神 ➔ 梳理干支冲合关系`,
+          `运行确定性历法引擎 ➔ 提取四柱干支与日主五行 ➔ 盘算藏干主气副气十神 ➔ 梳理干支冲合关系`,
           `检索已审核规则库 ➔ 匹配 [${topicName}] 规则卡 ➔ 关联古籍典籍出处与结构事实编号（Fact ID）`,
-          `启动防幻觉校验 ➔ 审查推断是否脱离事实编号 ➔ 拦截盲目吉凶评分与缺五行偏误 ➔ 确认合规标签`,
-          `整合多 Agent 推演成果 ➔ 格式化受约束解读章节 ➔ 建立高亮交互 Fact Tag ➔ 生成完整解盘报告`
+          `启动防幻觉校验 ➔ 审查推论是否脱离事实编号 ➔ 拦截盲目吉凶评分与缺五行偏误 ➔ 确认合规标签`,
+          `整合多 Agent 推演成果 ➔ 格式论证结构解读章节 ➔ 建立高亮交互 Fact Tag ➔ 生成完整解盘报告`
         ];
 
         const STEP_INTERVAL_MS = 6500; // 每步骤 6.5 秒平滑递进（满足 6-15s 要求）
 
         for (let idx = 0; idx < 5; idx++) {
           const stepNum = idx + 1;
-          const agentRoles = ["Coordinator Agent", "Chart Agent", "Metaphysics Agent", "Validator Agent", "Writer Agent"];
-          
-          aiButton.textContent = `[${stepNum}/5] ${agentRoles[idx]} 深度思考中…`;
-          runStepAnimation(idx, `${stepNum}/5 ${agentRoles[idx]}`);
+          const currentAgent = agentDefs[idx];
 
-          const thinkingEl = document.getElementById(`step-thinking-${stepNum}`);
-          if (thinkingEl) {
-            thinkingEl.textContent = "💭 Agent 思考中：" + thinkingSteps[idx];
+          if (loadingStageBadge) {
+            loadingStageBadge.textContent = `${stepNum}/5 ${currentAgent.agent}`;
+          }
+          aiButton.textContent = `[${stepNum}/5] ${currentAgent.agent} 深度思考中…`;
+
+          // 1. 不提前显示 01 ➔ 05：运行到该步骤时动态插入该步骤 DOM
+          const stepNode = document.createElement("div");
+          stepNode.className = "loading-step-item is-active";
+          stepNode.id = `step-node-${stepNum}`;
+          stepNode.innerHTML = `
+            <span class="step-num">${stepNum}</span>
+            <div class="step-content">
+              <strong class="step-role-title">${currentAgent.agent} · ${currentAgent.roleName}</strong>
+              <small id="step-desc-${stepNum}">${currentAgent.defaultDesc}</small>
+              <div class="step-thinking-text" id="step-thinking-${stepNum}"></div>
+            </div>
+          `;
+          if (loadingStepsFlow) {
+            loadingStepsFlow.appendChild(stepNode);
+            stepNode.scrollIntoView({ behavior: "smooth", block: "nearest" });
           }
 
-          // 保持 6.5 秒平滑思考间隔
+          // 2. 动态打字/省略号动画 (思考中......)
+          const thinkingEl = stepNode.querySelector(`#step-thinking-${stepNum}`);
+          let dotCount = 1;
+          const baseThinkingText = thinkingSteps[idx];
+          
+          if (activeDotsInterval) clearInterval(activeDotsInterval);
+          activeDotsInterval = setInterval(() => {
+            dotCount = (dotCount % 6) + 1;
+            const dots = ".".repeat(dotCount);
+            if (thinkingEl) {
+              thinkingEl.innerHTML = `Agent 思考中 <span class="dots-holder">${dots}</span> ${baseThinkingText}`;
+            }
+          }, 400);
+
+          // 3. 保持 6.5s 步骤平滑等待
           await new Promise((resolve) => {
             const timer = setTimeout(resolve, STEP_INTERVAL_MS);
             agentStepTimers.push(timer);
           });
+
+          // 步骤完成：停止当前打字动画，标记已完成并展开输出结论
+          if (activeDotsInterval) {
+            clearInterval(activeDotsInterval);
+            activeDotsInterval = null;
+          }
+          stepNode.classList.remove("is-active");
+          stepNode.classList.add("is-done");
+          
+          const descEl = stepNode.querySelector(`#step-desc-${stepNum}`);
+          if (descEl) {
+            descEl.textContent = `✓ 已完成数据处理，传递输出给下一级 Agent`;
+          }
+          if (thinkingEl) {
+            thinkingEl.innerHTML = `思考过程：${baseThinkingText}`;
+          }
         }
 
         try {
           const payload = await apiPromise;
+          if (payload?.ai?.agent?.fallback) {
+            console.error("[AI Generation Fallback Info]", payload.ai.agent.fallback);
+          }
           previousReading = payload.ai.text;
           renderAi(payload.ai.reading, payload.ai.agent);
 
@@ -2962,6 +2967,7 @@
             demo: currentIsDemo,
           });
         } catch (error) {
+          console.error("[AI Generation Failure]", error);
           if (agentLoadingCard) agentLoadingCard.hidden = true;
           setError(aiError, error.message || "AI 解读暂时不可用。");
         } finally {
@@ -3173,7 +3179,7 @@
                   <span class="node-status-check">✓ 已完成</span>
                 </div>
                 <div class="node-detail-text">${stepNode.detail}</div>
-                ${stepNode.thinking ? `<div class="node-thinking-block"><strong>💭 思考过程：</strong>${stepNode.thinking}</div>` : ""}
+                ${stepNode.thinking ? `<div class="node-thinking-block"><strong>思考过程：</strong>${stepNode.thinking}</div>` : ""}
               `;
               return nodeEl;
             }),
