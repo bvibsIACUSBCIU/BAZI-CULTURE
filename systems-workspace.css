@@ -175,22 +175,44 @@
 @keyframes system-float { 50% { transform: rotate(45deg) scale(.74) translate(-5px, 5px); } }
 
 @media (max-width: 620px) {
-  .system-panel .ziwei-visual { width: min(390px, 91vw); }
+  .system-panel .ziwei-visual { width: min(350px, 86vw); }
   .system-panel .palace-dot {
-    left: calc(50% - 18px);
-    top: calc(50% - 18px);
-    width: 36px;
-    height: 36px;
+    left: calc(50% - 17px);
+    top: calc(50% - 17px);
+    width: 34px;
+    height: 34px;
     font-size: 10px;
-    transform: rotate(calc(var(--i) * 30deg)) translateY(-166px) rotate(calc(var(--i) * -30deg));
+    transform: rotate(calc(var(--i) * 30deg)) translateY(-145px) rotate(calc(var(--i) * -30deg));
   }
-  .system-panel .center-seal { width: 86px; height: 86px; font-size: 24px; }
-  .system-panel .qimen-visual { width: min(420px, 93vw); }
-  .system-panel .palace-grid { grid-template-columns: repeat(2, 1fr); }
-  .system-panel .qimen-grid { grid-template-columns: repeat(3, 1fr); }
+  .system-panel .center-seal { width: 76px; height: 76px; font-size: 22px; }
+  .system-panel .qimen-visual { width: min(320px, 82vw); transform: rotate(45deg) scale(.68); }
+  .system-panel .palace-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .system-panel .qimen-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
   .system-panel .qimen-grid .palace { min-height: 135px; padding: 9px; }
   .system-panel .qimen-grid .palace h3 { font-size: 13px; }
   .system-panel .qimen-grid .palace p { font-size: 9px; }
+}
+
+@media (max-width: 380px) {
+  .system-panel .ziwei-visual { width: min(290px, 86vw); }
+  .system-panel .palace-dot {
+    left: calc(50% - 15px);
+    top: calc(50% - 15px);
+    width: 30px;
+    height: 30px;
+    font-size: 9px;
+    transform: rotate(calc(var(--i) * 30deg)) translateY(-120px) rotate(calc(var(--i) * -30deg));
+  }
+  .system-panel .center-seal { width: 64px; height: 64px; font-size: 18px; }
+  .system-panel .qimen-visual { width: min(260px, 78vw); transform: rotate(45deg) scale(.64); }
+  .system-panel .palace-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .system-panel .palace { padding: 8px; min-height: 115px; }
+  .system-panel .palace h3 { font-size: 13px; }
+  .system-panel .palace p { font-size: 9.5px; }
+  .system-panel .qimen-grid { grid-template-columns: repeat(3, 1fr); gap: 4px; }
+  .system-panel .qimen-grid .palace { min-height: 110px; padding: 6px 4px; }
+  .system-panel .qimen-grid .palace h3 { font-size: 11px; margin-bottom: 4px; }
+  .system-panel .qimen-grid .palace p { font-size: 8.5px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

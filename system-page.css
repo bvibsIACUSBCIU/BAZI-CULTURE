@@ -309,29 +309,53 @@ select option { color: #111; background: #eee; }
 
 @media (max-width: 620px) {
   .main { padding-inline: 14px; }
-  h1 { font-size: 42px; }
+  h1 { font-size: clamp(32px, 8vw, 42px); }
   .tagline { margin: 12px 0 22px; font-size: 11px; }
-  .cosmos { min-height: 440px; }
-  .ziwei-visual { width: min(390px, 91vw); }
+  .cosmos { min-height: auto; aspect-ratio: 1; max-width: 360px; margin: 0 auto; overflow: hidden; }
+  .ziwei-visual { width: min(350px, 86vw); }
   .palace-dot {
-    left: calc(50% - 18px);
-    top: calc(50% - 18px);
-    width: 36px;
-    height: 36px;
+    left: calc(50% - 17px);
+    top: calc(50% - 17px);
+    width: 34px;
+    height: 34px;
     font-size: 10px;
-    transform: rotate(calc(var(--i) * 30deg)) translateY(-166px) rotate(calc(var(--i) * -30deg));
+    transform: rotate(calc(var(--i) * 30deg)) translateY(-145px) rotate(calc(var(--i) * -30deg));
   }
-  .center-seal { width: 86px; height: 86px; font-size: 24px; }
-  .qimen-visual { width: min(420px, 93vw); }
+  .center-seal { width: 76px; height: 76px; font-size: 22px; }
+  .qimen-visual { width: min(320px, 82vw); transform: rotate(45deg) scale(.68); }
   .field-grid { grid-template-columns: 1fr; }
   .field--wide { grid-column: auto; }
   .section-head { display: block; }
   .section-head p { margin-top: 10px; }
-  .palace-grid { grid-template-columns: repeat(2, 1fr); }
-  .qimen-grid { grid-template-columns: repeat(3, 1fr); }
+  .palace-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .qimen-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
   .qimen-grid .palace { min-height: 135px; padding: 9px; }
   .qimen-grid .palace h3 { font-size: 13px; }
   .qimen-grid .palace p { font-size: 9px; }
+}
+
+@media (max-width: 380px) {
+  .main { padding-inline: 10px; }
+  .cosmos { max-width: 300px; }
+  .ziwei-visual { width: min(290px, 86vw); }
+  .palace-dot {
+    left: calc(50% - 15px);
+    top: calc(50% - 15px);
+    width: 30px;
+    height: 30px;
+    font-size: 9px;
+    transform: rotate(calc(var(--i) * 30deg)) translateY(-120px) rotate(calc(var(--i) * -30deg));
+  }
+  .center-seal { width: 64px; height: 64px; font-size: 18px; }
+  .qimen-visual { width: min(260px, 78vw); transform: rotate(45deg) scale(.64); }
+  .palace-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .palace { padding: 8px; min-height: 115px; }
+  .palace h3 { font-size: 13px; }
+  .palace p { font-size: 9.5px; }
+  .qimen-grid { grid-template-columns: repeat(3, 1fr); gap: 4px; }
+  .qimen-grid .palace { min-height: 110px; padding: 6px 4px; }
+  .qimen-grid .palace h3 { font-size: 11px; margin-bottom: 4px; }
+  .qimen-grid .palace p { font-size: 8.5px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
