@@ -240,7 +240,7 @@
       }
 
       .system-copy {
-        margin: -12px 0 24px;
+        margin: 0 0 24px;
         padding-left: 14px;
         border-left: 1px solid rgba(211, 168, 94, 0.32);
       }
@@ -1149,6 +1149,253 @@
         box-shadow: 0 2px 8px rgba(211, 168, 94, 0.25);
       }
 
+      /* Multi-Agent Loading Card (Fusion 1) */
+      .agent-loading-card {
+        margin: 18px 0;
+        padding: 16px 18px;
+        border: 1px solid rgba(211, 168, 94, 0.3);
+        border-radius: 12px;
+        background: rgba(17, 24, 32, 0.95);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), inset 0 1px rgba(211, 168, 94, 0.15);
+      }
+
+      .loading-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid rgba(211, 168, 94, 0.15);
+      }
+
+      .loading-pulse-ring {
+        width: 14px;
+        height: 14px;
+        border: 2px solid #d3a85e;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      .loading-header strong {
+        color: #f0d39a;
+        font: 14px/1.2 var(--serif);
+        letter-spacing: 0.05em;
+      }
+
+      .loading-stage-badge {
+        margin-left: auto;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background: rgba(211, 168, 94, 0.15);
+        color: #d3a85e;
+        font-size: 10px;
+      }
+
+      .loading-steps-flow {
+        display: grid;
+        gap: 8px;
+      }
+
+      .loading-step-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid transparent;
+        transition: all 0.3s ease;
+        opacity: 0.4;
+      }
+
+      .loading-step-item.is-active {
+        opacity: 1;
+        background: rgba(211, 168, 94, 0.08);
+        border-color: rgba(211, 168, 94, 0.35);
+        box-shadow: 0 0 12px rgba(211, 168, 94, 0.1);
+      }
+
+      .loading-step-item.is-done {
+        opacity: 0.85;
+        background: rgba(77, 182, 172, 0.06);
+        border-color: rgba(77, 182, 172, 0.2);
+      }
+
+      .step-num {
+        width: 22px;
+        height: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: rgba(211, 168, 94, 0.15);
+        color: #d3a85e;
+        font-size: 11px;
+        font-weight: 600;
+        flex-shrink: 0;
+      }
+
+      .loading-step-item.is-done .step-num {
+        background: rgba(77, 182, 172, 0.2);
+        color: #4db6ac;
+      }
+
+      .step-content {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .step-role-title {
+        color: #e5cd9c;
+        font-size: 12px;
+      }
+
+      .step-content small {
+        color: #8f969c;
+        font-size: 10px;
+      }
+
+      .step-thinking-text {
+        margin-top: 6px;
+        padding: 5px 9px;
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.35);
+        color: #c9b48c;
+        font-size: 11px;
+        line-height: 1.5;
+        border-left: 2px solid #d3a85e;
+        display: none;
+      }
+
+      .loading-step-item.is-active .step-thinking-text,
+      .loading-step-item.is-done .step-thinking-text {
+        display: block;
+      }
+
+      .node-thinking-block {
+        margin-top: 6px;
+        padding: 6px 10px;
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px dashed rgba(211, 168, 94, 0.25);
+        color: #bfa882;
+        font-size: 11px;
+        line-height: 1.55;
+      }
+
+      .node-thinking-block strong {
+        color: #f0cb82;
+      }
+
+      /* Multi-Agent Pipeline Card (Fusion 1 Result) */
+      .agent-pipeline-card {
+        margin: 16px 0 20px;
+        padding: 14px 16px;
+        border: 1px solid rgba(211, 168, 94, 0.25);
+        border-radius: 12px;
+        background: rgba(17, 24, 32, 0.7);
+        backdrop-filter: blur(12px);
+      }
+
+      .agent-pipeline-summary {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .pipeline-badge-tag {
+        padding: 2px 7px;
+        border-radius: 4px;
+        background: linear-gradient(90deg, rgba(211, 168, 94, 0.2), rgba(169, 67, 50, 0.2));
+        color: #f0cb82;
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+      }
+
+      .agent-pipeline-summary strong {
+        color: #e8d7bb;
+        font: 13px/1.3 var(--serif);
+      }
+
+      .pipeline-toggle-hint {
+        margin-left: auto;
+        color: #7a8288;
+        font-size: 10px;
+      }
+
+      .pipeline-nodes-container {
+        display: grid;
+        gap: 10px;
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px dashed rgba(211, 168, 94, 0.15);
+      }
+
+      .pipeline-node-item {
+        position: relative;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(211, 168, 94, 0.12);
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .pipeline-node-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .node-step-badge {
+        font-size: 10px;
+        font-weight: 700;
+        color: #8f969c;
+        min-width: 18px;
+      }
+
+      .agent-role-pill {
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 10px;
+        font-weight: 600;
+      }
+
+      .pill-coordinator, .badge-coordinator { background: rgba(211, 168, 94, 0.18); color: #f0d39a; border: 1px solid rgba(211, 168, 94, 0.3); }
+      .pill-chart, .badge-chart { background: rgba(77, 182, 172, 0.18); color: #80cbc4; border: 1px solid rgba(77, 182, 172, 0.3); }
+      .pill-metaphysics, .badge-metaphysics { background: rgba(144, 202, 249, 0.18); color: #90caf9; border: 1px solid rgba(144, 202, 249, 0.3); }
+      .pill-validator, .badge-validator { background: rgba(206, 147, 216, 0.18); color: #ce93d8; border: 1px solid rgba(206, 147, 216, 0.3); }
+      .pill-writer, .badge-writer { background: rgba(255, 183, 77, 0.18); color: #ffb74d; border: 1px solid rgba(255, 183, 77, 0.3); }
+
+      .node-action-title {
+        color: #dcd2c0;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .node-status-check {
+        margin-left: auto;
+        color: #4db6ac;
+        font-size: 11px;
+      }
+
+      .node-detail-text {
+        color: #9ea6ac;
+        font-size: 11px;
+        line-height: 1.5;
+        padding-left: 26px;
+      }
+
       .ai-card {
         position: relative;
         overflow: hidden;
@@ -1576,7 +1823,8 @@
           min-height: 0;
           display: flex;
           flex-direction: column;
-          gap: 0;
+          align-items: center;
+          gap: 16px;
           min-width: 0;
         }
 
@@ -1590,30 +1838,41 @@
 
         h1 {
           order: 1;
-          align-self: center;
           max-width: 100%;
-          font-size: clamp(34px, 8vw, 45px);
-          letter-spacing: 0;
+          font-size: clamp(32px, 7vw, 42px);
+          letter-spacing: 0.02em;
           text-align: center;
+          margin-bottom: 4px;
         }
 
         .tagline {
-          order: 1;
-          align-self: center;
+          order: 2;
           justify-content: center;
-          margin-bottom: 0;
+          margin: 4px 0 16px;
           font-size: 11px;
           letter-spacing: 0.12em;
         }
 
+        .system-copy {
+          order: 3;
+          margin: 0 0 16px;
+          padding: 10px 14px;
+          border-left: 2px solid var(--gold);
+          border-radius: 0 8px 8px 0;
+          background: rgba(211, 168, 94, 0.04);
+          text-align: left;
+          width: 100%;
+          max-width: 640px;
+        }
+
         .cosmos {
-          order: 2;
+          order: 4;
           width: 100%;
           min-height: auto;
           aspect-ratio: 1;
           max-width: 440px;
-          margin: 0 auto;
-          overflow: hidden;
+          margin: 10px auto 20px;
+          overflow: visible;
         }
 
         .wheel {
@@ -1623,16 +1882,26 @@
           margin: 0 auto;
         }
 
-        .cosmos-copy,
-        .status-dot {
-          display: none;
+        .cosmos-copy {
+          margin-top: 8px;
+          padding: 8px 18px;
+        }
+
+        .cosmos-copy strong {
+          font-size: 15px;
+        }
+
+        .cosmos-copy span {
+          font-size: 10px;
         }
 
         .form-card {
-          order: 3;
+          order: 5;
           width: 100%;
+          max-width: 640px;
           min-width: 0;
           padding: 20px 16px;
+          margin: 0 auto;
         }
 
         .field-grid {
@@ -2129,10 +2398,69 @@
                   “基础概念”不构成个性化断语；“边界说明”表示当前证据或能力不足。
                 </p>
               </details>
+              <div class="agent-loading-card" id="agent-loading-card" hidden>
+                <div class="loading-header">
+                  <div class="loading-pulse-ring"></div>
+                  <strong>多 Agent 联调推演中… (逐阶段深度思考)</strong>
+                  <span class="loading-stage-badge" id="loading-stage-badge">1/5 Coordinator Agent</span>
+                </div>
+                <div class="loading-steps-flow">
+                  <div class="loading-step-item" id="step-node-1">
+                    <span class="step-num">1</span>
+                    <div class="step-content">
+                      <strong class="step-role-title">Coordinator Agent · 协调引擎</strong>
+                      <small id="step-desc-1">解析研读意图与策略分派…</small>
+                      <div class="step-thinking-text" id="step-thinking-1"></div>
+                    </div>
+                  </div>
+                  <div class="loading-step-item" id="step-node-2">
+                    <span class="step-num">2</span>
+                    <div class="step-content">
+                      <strong class="step-role-title">Chart Agent · 排盘引擎</strong>
+                      <small id="step-desc-2">提取确定性四柱干支与藏干十神…</small>
+                      <div class="step-thinking-text" id="step-thinking-2"></div>
+                    </div>
+                  </div>
+                  <div class="loading-step-item" id="step-node-3">
+                    <span class="step-num">3</span>
+                    <div class="step-content">
+                      <strong class="step-role-title">Metaphysics Agent · 命理推演</strong>
+                      <small id="step-desc-3">检索已审核知识库规则…</small>
+                      <div class="step-thinking-text" id="step-thinking-3"></div>
+                    </div>
+                  </div>
+                  <div class="loading-step-item" id="step-node-4">
+                    <span class="step-num">4</span>
+                    <div class="step-content">
+                      <strong class="step-role-title">Validator Agent · 校验引擎</strong>
+                      <small id="step-desc-4">边界防错与防幻觉校验…</small>
+                      <div class="step-thinking-text" id="step-thinking-4"></div>
+                    </div>
+                  </div>
+                  <div class="loading-step-item" id="step-node-5">
+                    <span class="step-num">5</span>
+                    <div class="step-content">
+                      <strong class="step-role-title">Writer Agent · 报告生成</strong>
+                      <small id="step-desc-5">组织受约束结构化解读报告…</small>
+                      <div class="step-thinking-text" id="step-thinking-5"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div class="error" id="ai-error" role="alert"></div>
 
               <div class="ai-output" id="ai-output" hidden>
                 <p class="topic-meta" id="topic-meta"></p>
+
+                <details class="agent-pipeline-card" id="agent-pipeline-card" open>
+                  <summary class="agent-pipeline-summary">
+                    <span class="pipeline-badge-tag">TIANFU MULTI-AGENT PIPELINE</span>
+                    <strong>推演步骤与 Agent 角色链 (5/5 已完成)</strong>
+                    <span class="pipeline-toggle-hint">展开/折叠</span>
+                  </summary>
+                  <div class="pipeline-nodes-container" id="pipeline-nodes-container"></div>
+                </details>
+
                 <p class="ai-summary" id="ai-summary"></p>
                 <div class="ai-sections" id="ai-sections"></div>
                 <div class="reflection">
@@ -2522,8 +2850,41 @@
         }
       }
 
-      let aiStageTimer1 = null;
-      let aiStageTimer2 = null;
+      let agentStepTimers = [];
+      const agentLoadingCard = document.getElementById("agent-loading-card");
+      const loadingStageBadge = document.getElementById("loading-stage-badge");
+      const pipelineNodesContainer = document.getElementById("pipeline-nodes-container");
+
+      function resetLoadingSteps() {
+        for (let i = 1; i <= 5; i++) {
+          const item = document.getElementById(`step-node-${i}`);
+          if (item) item.classList.remove("is-active", "is-done");
+          const thinkingEl = document.getElementById(`step-thinking-${i}`);
+          if (thinkingEl) thinkingEl.textContent = "";
+        }
+      }
+
+      function runStepAnimation(stepIndex, badgeText) {
+        if (loadingStageBadge) loadingStageBadge.textContent = badgeText;
+        for (let i = 1; i <= 5; i++) {
+          const item = document.getElementById(`step-node-${i}`);
+          if (!item) continue;
+          if (i - 1 < stepIndex) {
+            item.classList.remove("is-active");
+            item.classList.add("is-done");
+          } else if (i - 1 === stepIndex) {
+            item.classList.add("is-active");
+            item.classList.remove("is-done");
+          } else {
+            item.classList.remove("is-active", "is-done");
+          }
+        }
+      }
+
+      function clearStepTimers() {
+        agentStepTimers.forEach((t) => clearTimeout(t));
+        agentStepTimers = [];
+      }
 
       async function generateAi(question, topic = currentTopic) {
         if (!currentInput) return;
@@ -2533,22 +2894,55 @@
         setAiLoading(true);
         cosmos.classList.add("is-loading");
 
-        // Task 6: 多阶段打字/状态切换提示
-        aiButton.textContent = "[1/3] 正在调取确定性命盘摘要…";
-        aiStageTimer1 = setTimeout(() => {
-          if (aiButton.disabled) aiButton.textContent = "[2/3] 匹配已审核古籍规则库…";
-        }, 1200);
-        aiStageTimer2 = setTimeout(() => {
-          if (aiButton.disabled) aiButton.textContent = "[3/3] 生成受约束结构解读…";
-        }, 2600);
+        aiOutput.hidden = true;
+        if (agentLoadingCard) {
+          agentLoadingCard.hidden = false;
+          resetLoadingSteps();
+        }
+
+        // 发起后台 API 计算请求
+        const apiPromise = postJson("/api/ai-report", {
+          ...currentInput,
+          question: String(question || "").trim(),
+          previousReading,
+          topic: currentTopic,
+        });
+
+        // 多 Agent 思考过程内容库（6-15秒间隔/步骤）
+        const topicLabels = { overview: "原局总览", career: "事业研读", wealth: "财富研读", relationship: "情感研读" };
+        const topicName = topicLabels[currentTopic] || "原局总览";
+
+        const thinkingSteps = [
+          `分析研读请求 ➔ 确认目标主题 [${topicName}] ➔ 检查历法算力引擎 ➔ 分派指令至 Chart Agent`,
+          `运行确定性历法引擎 ➔ 提取四柱干支与日主五行 ➔ 盘点藏干主气副气十神 ➔ 梳理干支冲合关系`,
+          `检索已审核规则库 ➔ 匹配 [${topicName}] 规则卡 ➔ 关联古籍典籍出处与结构事实编号（Fact ID）`,
+          `启动防幻觉校验 ➔ 审查推断是否脱离事实编号 ➔ 拦截盲目吉凶评分与缺五行偏误 ➔ 确认合规标签`,
+          `整合多 Agent 推演成果 ➔ 格式化受约束解读章节 ➔ 建立高亮交互 Fact Tag ➔ 生成完整解盘报告`
+        ];
+
+        const STEP_INTERVAL_MS = 6500; // 每步骤 6.5 秒平滑递进（满足 6-15s 要求）
+
+        for (let idx = 0; idx < 5; idx++) {
+          const stepNum = idx + 1;
+          const agentRoles = ["Coordinator Agent", "Chart Agent", "Metaphysics Agent", "Validator Agent", "Writer Agent"];
+          
+          aiButton.textContent = `[${stepNum}/5] ${agentRoles[idx]} 深度思考中…`;
+          runStepAnimation(idx, `${stepNum}/5 ${agentRoles[idx]}`);
+
+          const thinkingEl = document.getElementById(`step-thinking-${stepNum}`);
+          if (thinkingEl) {
+            thinkingEl.textContent = "💭 Agent 思考中：" + thinkingSteps[idx];
+          }
+
+          // 保持 6.5 秒平滑思考间隔
+          await new Promise((resolve) => {
+            const timer = setTimeout(resolve, STEP_INTERVAL_MS);
+            agentStepTimers.push(timer);
+          });
+        }
 
         try {
-          const payload = await postJson("/api/ai-report", {
-            ...currentInput,
-            question: String(question || "").trim(),
-            previousReading,
-            topic: currentTopic,
-          });
+          const payload = await apiPromise;
           previousReading = payload.ai.text;
           renderAi(payload.ai.reading, payload.ai.agent);
 
@@ -2557,6 +2951,7 @@
           intentPicker.hidden = false;
           updateSegmentedTabsActiveState(currentTopic, isQuestion);
 
+          if (agentLoadingCard) agentLoadingCard.hidden = true;
           aiOutput.hidden = false;
           questionArea.hidden = false;
           feedbackPanel.hidden = false;
@@ -2567,10 +2962,10 @@
             demo: currentIsDemo,
           });
         } catch (error) {
+          if (agentLoadingCard) agentLoadingCard.hidden = true;
           setError(aiError, error.message || "AI 解读暂时不可用。");
         } finally {
-          clearTimeout(aiStageTimer1);
-          clearTimeout(aiStageTimer2);
+          clearStepTimers();
           setAiLoading(false);
           cosmos.classList.remove("is-loading");
           aiButton.innerHTML = aiButtonDefaultMarkup;
@@ -2763,6 +3158,27 @@
           " · 证据完整度：" +
           (reading.confidence === "moderate" ? "中等" : "有限");
         aiSummary.textContent = reading.summary;
+
+        // Render Tianfu Multi-Agent Pipeline steps (Fusion 1)
+        if (pipelineNodesContainer && agent && Array.isArray(agent.pipeline)) {
+          pipelineNodesContainer.replaceChildren(
+            ...agent.pipeline.map((stepNode, idx) => {
+              const nodeEl = document.createElement("div");
+              nodeEl.className = "pipeline-node-item";
+              nodeEl.innerHTML = `
+                <div class="pipeline-node-header">
+                  <span class="node-step-badge">0${idx + 1}</span>
+                  <span class="agent-role-pill ${stepNode.badgeClass || 'badge-coordinator'}">${stepNode.agent}</span>
+                  <strong class="node-action-title">${stepNode.roleName} · ${stepNode.action}</strong>
+                  <span class="node-status-check">✓ 已完成</span>
+                </div>
+                <div class="node-detail-text">${stepNode.detail}</div>
+                ${stepNode.thinking ? `<div class="node-thinking-block"><strong>💭 思考过程：</strong>${stepNode.thinking}</div>` : ""}
+              `;
+              return nodeEl;
+            }),
+          );
+        }
 
         // Task 7: 事实代码映射为带有 Hover/Click 交互的事实标签 Fact Tags
         function formatFactTag(factCode) {

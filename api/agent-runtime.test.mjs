@@ -135,3 +135,29 @@ test("configuration and input failures do not silently fall back", async () => {
     (error) => error.code === "AI_NOT_CONFIGURED",
   );
 });
+
+test("agent runtime returns structured 5-agent pipeline steps", async () => {
+  const runtime = createAgentRuntime({
+    generate: async () => ({ text: "回答", reading: { sections: [{}, {}] } }),
+  });
+
+  const result = await runtime.run({
+    chatId: 10,
+    session: SESSION,
+    topic: "career",
+    mode: "topic",
+  });
+
+  assert.equal(Array.isArray(result.agent.pipeline), true);
+  assert.equal(result.agent.pipeline.length, 5);
+  const agentNames = result.agent.pipeline.map((p) => p.agent);
+  assert.deepEqual(agentNames, [
+    "Coordinator Agent",
+    "Chart Agent",
+    "Metaphysics Agent",
+    "Validator Agent",
+    "Writer Agent",
+  ]);
+  assert.equal(result.agent.pipeline[0].roleName, "协调引擎");
+  assert.equal(result.agent.pipeline[1].roleName, "排盘与结构计算");
+});

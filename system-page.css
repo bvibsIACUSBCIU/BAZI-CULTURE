@@ -326,19 +326,16 @@ select option { color: #111; background: #eee; }
   .sidebar { display: none; }
   .main { padding: 18px 18px 42px; }
   .mobile-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
-  .mobile-status { width: 7px; height: 7px; border-radius: 50%; background: #70ac67; box-shadow: 0 0 9px #70ac67; }
-  .hero { min-height: auto; grid-template-columns: 1fr; gap: 12px; }
-  .intro { max-width: 620px; margin: 0 auto; }
-  .cosmos { min-height: 570px; margin-top: 0; order: -1; }
-  .cosmos-copy { bottom: 12px; }
-  .status-dot { display: none; }
+  .hero { min-height: auto; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .intro { display: contents; }
+  .cosmos { min-height: auto; margin: 16px auto; }
 }
 
 @media (max-width: 620px) {
   .main { padding-inline: 14px; }
-  h1 { font-size: clamp(32px, 8vw, 42px); }
-  .tagline { margin: 12px 0 22px; font-size: 11px; }
-  .cosmos { min-height: auto; aspect-ratio: 1; max-width: 360px; margin: 0 auto; overflow: hidden; }
+  h1 { font-size: clamp(30px, 7vw, 40px); }
+  .tagline { margin: 10px 0 18px; font-size: 11px; }
+  .cosmos { min-height: auto; aspect-ratio: 1; max-width: 360px; margin: 12px auto; overflow: visible; }
   .ziwei-visual { width: min(350px, 86vw); }
   .palace-dot {
     left: calc(50% - 17px);
