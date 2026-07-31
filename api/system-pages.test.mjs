@@ -63,7 +63,7 @@ test("all three systems share the same first-screen product skeleton", async () 
   assert.equal(panels.length, 3);
   for (const [, system] of panels) {
     const panel = panels.find((entry) => entry[1] === system)[0];
-    for (const className of ["hero", "intro", "tagline", "system-copy", "form-card", "cosmos", "status-dot"]) {
+    for (const className of ["hero", "intro", "tagline", "system-copy", "form-card", "cosmos"]) {
       assert.match(panel, new RegExp(`class="[^"]*\\b${className}\\b`));
     }
   }

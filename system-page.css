@@ -262,11 +262,38 @@ select option { color: #111; background: #eee; }
   background: radial-gradient(circle, rgba(211, 168, 94, .2), rgba(8, 13, 19, .75));
   box-shadow: inset 0 0 30px rgba(211, 168, 94, .12);
 }
-.cosmos-copy { position: absolute; bottom: 38px; left: 50%; display: grid; gap: 8px; width: max-content; transform: translateX(-50%); text-align: center; }
+.cosmos {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 620px;
+  padding-top: 10px;
+  padding-bottom: 24px;
+}
+.cosmos-copy {
+  position: relative;
+  bottom: auto;
+  left: auto;
+  transform: none;
+  display: grid;
+  gap: 5px;
+  width: max-content;
+  max-width: 90%;
+  margin-top: 12px;
+  padding: 10px 24px;
+  border-radius: 12px;
+  background: rgba(8, 13, 19, .65);
+  border: 1px solid rgba(211, 168, 94, .16);
+  backdrop-filter: blur(12px);
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, .3);
+}
 .cosmos-copy strong { color: #d9c49e; font: 18px/1.4 var(--serif); letter-spacing: .17em; }
-.cosmos-copy span { color: #6f777e; font-size: 10px; }
-.status-dot { position: absolute; right: 8px; bottom: 28px; color: #6f777e; font-size: 10px; }
-.status-dot::before { display: inline-block; width: 6px; height: 6px; margin-right: 7px; border-radius: 50%; background: #70ac67; box-shadow: 0 0 8px #70ac67; content: ""; }
+.cosmos-copy span { color: #899298; font-size: 11px; }
+.status-dot, .mobile-status { display: none !important; }
 
 .experience { width: min(1420px, 100%); margin-inline: auto; }
 .experience { margin-top: 28px; scroll-margin-top: 28px; }

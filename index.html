@@ -573,15 +573,20 @@
 
       .cosmos {
         position: relative;
-        min-height: 680px;
-        display: grid;
-        place-items: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        min-height: 640px;
+        padding-top: 10px;
+        padding-bottom: 24px;
       }
 
       .cosmos::after {
         position: absolute;
         right: 8%;
-        bottom: 6%;
+        bottom: 0;
         left: 8%;
         height: 1px;
         background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
@@ -619,43 +624,38 @@
       }
 
       .cosmos-copy {
-        position: absolute;
-        bottom: 2%;
+        position: relative;
+        bottom: auto;
+        left: auto;
         z-index: 2;
         text-align: center;
+        margin-top: 6px;
+        padding: 10px 24px;
+        border-radius: 12px;
+        background: rgba(8, 13, 19, 0.65);
+        border: 1px solid rgba(211, 168, 94, 0.16);
+        backdrop-filter: blur(12px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
       }
 
       .cosmos-copy strong {
         display: block;
         color: #e2d2b9;
-        font: 20px/1.4 var(--serif);
+        font: 18px/1.4 var(--serif);
         letter-spacing: 0.18em;
       }
 
       .cosmos-copy span {
         display: block;
-        margin-top: 7px;
-        color: #737b80;
-        font-size: 10px;
+        margin-top: 5px;
+        color: #899298;
+        font-size: 11px;
+        letter-spacing: 0.05em;
       }
 
-      .status-dot {
-        position: absolute;
-        right: 0;
-        bottom: 4%;
-        color: #777e83;
-        font-size: 10px;
-      }
-
-      .status-dot::before {
-        display: inline-block;
-        width: 6px;
-        height: 6px;
-        margin-right: 7px;
-        border-radius: 50%;
-        background: #6ba66e;
-        box-shadow: 0 0 7px #6ba66e;
-        content: "";
+      .status-dot,
+      .mobile-status {
+        display: none !important;
       }
 
       .error {
@@ -1895,7 +1895,6 @@
             <a data-system-switch="ziwei" href="#ziwei">紫微</a>
             <a data-system-switch="qimen" href="#qimen">奇门</a>
           </nav>
-          <span class="mobile-status" aria-label="测试版在线"></span>
         </header>
 
         <div class="system-panel" id="bazi-system" data-system-panel="bazi">
@@ -2042,7 +2041,6 @@
               <strong>阴阳相生 · 四时有序</strong>
               <span>确定性历法排盘，AI 只负责解释</span>
             </div>
-            <div class="status-dot">测试服务在线</div>
           </div>
         </section>
 
@@ -2229,7 +2227,6 @@
                 <div class="center-seal">紫微</div>
               </div>
               <div class="cosmos-copy"><strong>星曜布列 · 十二宫垣</strong><span>确定性程序排盘，当前仅返回结构盘面</span></div>
-              <div class="status-dot">计算服务在线</div>
             </div>
           </section>
           <section class="experience" id="ziwei-chart" hidden>
@@ -2277,7 +2274,6 @@
                 <div class="qimen-cell"><span>艮八</span></div><div class="qimen-cell"><span>坎一</span></div><div class="qimen-cell"><span>乾六</span></div>
               </div>
               <div class="cosmos-copy"><strong>九宫定位 · 门星神仪</strong><span>锁定茅山派转盘法，不混用其他定局方法</span></div>
-              <div class="status-dot">计算服务在线</div>
             </div>
           </section>
           <section class="experience" id="qimen-chart" hidden>
