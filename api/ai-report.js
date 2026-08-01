@@ -17,6 +17,7 @@ import { createKnowledgeTools } from "../lib/agent/tools/knowledge-tools.js";
 import { AGENT_LIMITS } from "../lib/agent/agent-policy.js";
 import { normalizeBaziTopic } from "../lib/metaphysics/bazi-topics.js";
 import { getEnv } from "../lib/runtime/env.js";
+import { defaultAuthService } from "../lib/runtime/auth-service.js";
 
 export function createAiReportHandler(options = {}) {
   const calculate = options.calculate || calculateBazi;
@@ -82,6 +83,14 @@ export function createAiReportHandler(options = {}) {
     try {
       await clientLimiter.consume(clientIdentity(request));
       await globalLimiter.consume("all-clients");
+
+      const wallet = request.body?.wallet || readHeader(request, "x-wallet-address");
+      let creditInfo = null;
+
+      if (wallet) {
+        creditInfo = defaultAuthService.deductCredits(wallet, 10);
+      }
+
       const chart = await calculate({
         date: request.body?.date,
         time: request.body?.time,
@@ -103,6 +112,7 @@ export function createAiReportHandler(options = {}) {
         ok: true,
         chart,
         ai: result,
+        ...(creditInfo ? { credits: creditInfo.remainingCredits, remainingDialogues: creditInfo.remainingDialogues } : {})
       });
     } catch (error) {
       writeError(response, error);
@@ -113,6 +123,15 @@ export function createAiReportHandler(options = {}) {
 export default createAiReportHandler();
 
 function writeError(response, error) {
+  if (error && (error.code === 'INSUFFICIENT_CREDITS' || error.code === 'ACCOUNT_NOT_FOUND')) {
+    response.status(402).json({
+      ok: false,
+      code: error.code,
+      error: error.message,
+      details: error.details
+    });
+    return;
+  }
   if (error instanceof RateLimitError) {
     response.status(429).json({
       ok: false,

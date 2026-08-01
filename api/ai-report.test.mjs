@@ -176,6 +176,44 @@ test("OpenAI-compatible provider uses chat completions and parses JSON fences", 
   assert.equal(result.reading.title, READING.title);
 });
 
+test("AI report endpoint deducts 10 credits when wallet is provided", async () => {
+  const { defaultAuthService } = await import("../lib/runtime/auth-service.js");
+  const wallet = "0x8888888888888888888888888888888888888888";
+  defaultAuthService.loginOrRegister(wallet, "127.0.0.1");
+
+  let payload;
+  const handler = createAiReportHandler({
+    calculate: async () => CHART,
+    generate: async ({ chart, question }) => ({
+      model: "gpt-5.5",
+      mode: "reading",
+      reading: READING,
+      text: formatReadingText(READING),
+      chart,
+    }),
+  });
+
+  await handler(
+    {
+      method: "POST",
+      body: {
+        date: "1990-06-15",
+        time: "14:30",
+        timeKnown: true,
+        consent: true,
+        wallet,
+      },
+    },
+    mockResponse((code, body) => {
+      assert.equal(code, 200);
+      payload = body;
+    }),
+  );
+
+  assert.equal(payload.credits, 90);
+  assert.equal(payload.remainingDialogues, 9);
+});
+
 function mockResponse(onJson) {
   let statusCode = 200;
   return {

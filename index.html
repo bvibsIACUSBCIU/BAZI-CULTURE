@@ -100,7 +100,7 @@
       .layout {
         min-height: 100vh;
         display: grid;
-        grid-template-columns: 180px minmax(0, 1fr);
+        grid-template-columns: 260px minmax(0, 1fr);
       }
 
       .sidebar {
@@ -109,72 +109,382 @@
         height: 100vh;
         display: flex;
         flex-direction: column;
-        padding: 30px 18px 24px;
-        border-right: 1px solid rgba(211, 168, 94, 0.15);
-        background: rgba(7, 12, 18, 0.86);
-        backdrop-filter: blur(18px);
+        gap: 18px;
+        padding: 24px 16px;
+        border-right: 1px solid rgba(211, 168, 94, 0.2);
+        background: rgba(7, 12, 18, 0.92);
+        backdrop-filter: blur(20px);
+        overflow-y: auto;
+      }
+
+      .sidebar-header {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
       }
 
       .brand {
         display: flex;
         align-items: center;
-        gap: 11px;
+        gap: 12px;
         color: var(--gold-light);
         text-decoration: none;
       }
 
       .brand-mark {
-        width: 42px;
-        height: 42px;
+        width: 38px;
+        height: 38px;
         flex: 0 0 auto;
-        filter: drop-shadow(0 0 10px rgba(211, 168, 94, 0.25));
+        filter: drop-shadow(0 0 10px rgba(211, 168, 94, 0.3));
       }
 
       .brand strong {
         display: block;
-        font: 700 20px/1 var(--serif);
+        font: 700 19px/1.1 var(--serif);
         letter-spacing: 0.16em;
       }
 
       .brand small {
         display: block;
-        margin-top: 6px;
+        margin-top: 4px;
         color: #777e84;
-        font-size: 8px;
+        font-size: 9px;
         letter-spacing: 0.15em;
+      }
+
+      .btn-new-session {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        min-height: 40px;
+        padding: 0 16px;
+        border: 1px solid var(--gold-dim);
+        border-radius: 9px;
+        background: linear-gradient(135deg, rgba(211, 168, 94, 0.15), rgba(118, 95, 57, 0.25));
+        color: var(--gold-light);
+        font-size: 13px;
+        font-weight: 600;
+        transition: all 0.25s ease;
+      }
+
+      .btn-new-session:hover {
+        border-color: var(--gold-light);
+        background: linear-gradient(135deg, rgba(211, 168, 94, 0.3), rgba(118, 95, 57, 0.4));
+        box-shadow: 0 0 12px rgba(211, 168, 94, 0.25);
       }
 
       .nav {
         display: grid;
-        gap: 10px;
-        margin-top: 56px;
+        gap: 6px;
       }
 
       .nav a {
         display: flex;
         align-items: center;
         gap: 12px;
-        min-height: 48px;
+        min-height: 42px;
         padding: 0 14px;
         border: 1px solid transparent;
-        border-radius: 10px;
+        border-radius: 9px;
         color: #8f969c;
         text-decoration: none;
         font-size: 13px;
+        transition: all 0.2s ease;
       }
 
       .nav a.active,
       .nav a:hover {
         border-color: var(--line);
         color: var(--gold-light);
-        background: rgba(211, 168, 94, 0.06);
+        background: rgba(211, 168, 94, 0.08);
       }
 
       .nav-icon {
-        width: 23px;
+        width: 20px;
         color: var(--gold);
         text-align: center;
-        font-size: 18px;
+        font-size: 16px;
+      }
+
+      /* Sidebar Sections & R1 Components */
+      .sidebar-section {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .sidebar-section-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 11px;
+        font-weight: 600;
+        color: #ad9a7a;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .btn-icon-add {
+        width: 22px;
+        height: 22px;
+        border: 1px solid rgba(211, 168, 94, 0.3);
+        border-radius: 50%;
+        background: rgba(211, 168, 94, 0.1);
+        color: var(--gold-light);
+        font-size: 13px;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+      }
+
+      .btn-icon-add:hover {
+        background: rgba(211, 168, 94, 0.25);
+        border-color: var(--gold);
+      }
+
+      .sidebar-input {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid rgba(211, 168, 94, 0.25);
+        border-radius: 8px;
+        background: rgba(13, 20, 29, 0.7);
+        color: var(--paper);
+        font-size: 12px;
+        transition: border-color 0.2s ease;
+      }
+
+      .sidebar-input:focus {
+        border-color: var(--gold);
+        background: rgba(13, 20, 29, 0.9);
+      }
+
+      .profile-list, .session-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        max-height: 160px;
+        overflow-y: auto;
+      }
+
+      .profile-item, .session-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 10px;
+        border-radius: 7px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid transparent;
+        color: #b0b8bf;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .profile-item:hover, .session-item:hover {
+        background: rgba(211, 168, 94, 0.08);
+        color: var(--paper);
+      }
+
+      .profile-item.active {
+        background: rgba(211, 168, 94, 0.15);
+        border-color: rgba(211, 168, 94, 0.4);
+        color: var(--gold-light);
+        font-weight: 600;
+      }
+
+      .profile-badge-active {
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: rgba(211, 168, 94, 0.25);
+        color: var(--gold-light);
+      }
+
+      .session-item-title {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 170px;
+      }
+
+      .session-bookmark-star {
+        font-size: 13px;
+        color: var(--gold);
+        opacity: 0.7;
+        transition: opacity 0.2s;
+      }
+
+      .session-bookmark-star:hover {
+        opacity: 1;
+      }
+
+      .points-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, rgba(211, 168, 94, 0.12), rgba(13, 20, 29, 0.8));
+        border: 1px solid rgba(211, 168, 94, 0.3);
+      }
+
+      .points-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .points-balance {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--gold-light);
+      }
+
+      .btn-checkin {
+        padding: 4px 12px;
+        border: 1px solid var(--gold);
+        border-radius: 14px;
+        background: rgba(211, 168, 94, 0.2);
+        color: var(--gold-light);
+        font-size: 11px;
+        font-weight: 600;
+        transition: all 0.2s ease;
+      }
+
+      .btn-checkin:hover:not(:disabled) {
+        background: rgba(211, 168, 94, 0.35);
+        box-shadow: 0 0 8px rgba(211, 168, 94, 0.3);
+      }
+
+      .btn-checkin:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .checkin-progress-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .checkin-info {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 10px;
+        color: #9299a0;
+      }
+
+      .progress-bar {
+        height: 5px;
+        width: 100%;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--gold-dim), var(--gold-light));
+        border-radius: 3px;
+        transition: width 0.4s ease;
+      }
+
+      /* Web3 Auth & Credit Bar */
+      .web3-auth-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 12px 20px;
+        margin-bottom: 24px;
+        background: rgba(17, 25, 34, 0.85);
+        border: 1px solid rgba(211, 168, 94, 0.35);
+        border-radius: 12px;
+        backdrop-filter: blur(12px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      }
+      .web3-user-info {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-size: 13px;
+        color: var(--paper);
+        flex-wrap: wrap;
+      }
+      .web3-badge {
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        background: rgba(211, 168, 94, 0.15);
+        color: var(--gold-light);
+        border: 1px solid rgba(211, 168, 94, 0.35);
+      }
+      .web3-credits-badge {
+        background: rgba(99, 132, 167, 0.2);
+        color: #a2c6ee;
+        border: 1px solid rgba(99, 132, 167, 0.4);
+      }
+      .web3-connect-btn {
+        padding: 8px 18px;
+        border: 1px solid var(--gold);
+        border-radius: 8px;
+        background: linear-gradient(135deg, rgba(211, 168, 94, 0.25), rgba(118, 95, 57, 0.3));
+        color: var(--gold-light);
+        font-weight: 600;
+        font-size: 13px;
+        transition: all 0.25s ease;
+      }
+      .web3-connect-btn:hover {
+        background: linear-gradient(135deg, rgba(211, 168, 94, 0.4), rgba(118, 95, 57, 0.5));
+        box-shadow: 0 0 14px rgba(211, 168, 94, 0.3);
+      }
+
+      /* tianfu-ai 风格多 Agent 推理链 */
+      .agent-pipeline-box {
+        margin: 18px 0;
+        padding: 16px;
+        background: rgba(13, 20, 29, 0.9);
+        border: 1px solid rgba(211, 168, 94, 0.2);
+        border-radius: 10px;
+      }
+      .agent-pipeline-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 13px;
+        color: var(--gold-light);
+        margin-bottom: 12px;
+        font-weight: 600;
+      }
+      .agent-steps {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .agent-step-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 12px;
+        color: var(--muted);
+        padding: 6px 10px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.03);
+        transition: all 0.3s ease;
+      }
+      .agent-step-item.active {
+        color: var(--gold-light);
+        background: rgba(211, 168, 94, 0.1);
+        border-left: 3px solid var(--gold);
+      }
+      .agent-step-item.completed {
+        color: #92b889;
       }
 
       .side-foot {
@@ -2270,16 +2580,21 @@
 
     <div class="layout">
       <aside class="sidebar">
-        <a class="brand" href="#bazi" aria-label="两仪首页">
-          <svg class="brand-mark" viewBox="0 0 100 100" aria-hidden="true">
-            <circle cx="50" cy="50" r="43" fill="none" stroke="#d3a85e" stroke-width="2" />
-            <circle cx="50" cy="50" r="31" fill="none" stroke="#765f39" />
-            <path d="M50 19a31 31 0 0 1 0 62a15.5 15.5 0 0 1 0-31a15.5 15.5 0 0 0 0-31" fill="#d3a85e" />
-            <circle cx="50" cy="34.5" r="4" fill="#0b1118" />
-            <circle cx="50" cy="65.5" r="4" fill="#0b1118" />
-          </svg>
-          <div><strong>两仪</strong><small>BAZI AGENT</small></div>
-        </a>
+        <div class="sidebar-header">
+          <a class="brand" href="#bazi" aria-label="两仪首页">
+            <svg class="brand-mark" viewBox="0 0 100 100" aria-hidden="true">
+              <circle cx="50" cy="50" r="43" fill="none" stroke="#d3a85e" stroke-width="2" />
+              <circle cx="50" cy="50" r="31" fill="none" stroke="#765f39" />
+              <path d="M50 19a31 31 0 0 1 0 62a15.5 15.5 0 0 1 0-31a15.5 15.5 0 0 0 0-31" fill="#d3a85e" />
+              <circle cx="50" cy="34.5" r="4" fill="#0b1118" />
+              <circle cx="50" cy="65.5" r="4" fill="#0b1118" />
+            </svg>
+            <div><strong>两仪</strong><small>BAZI AGENT</small></div>
+          </a>
+          <button type="button" class="btn-new-session" id="new-session-btn" title="新建对话">
+            <span>+👤</span> 新建对话
+          </button>
+        </div>
 
         <nav class="nav" aria-label="主导航">
           <a class="active" data-system-switch="bazi" href="#bazi"><span class="nav-icon">◎</span>八字研读</a>
@@ -2287,13 +2602,67 @@
           <a data-system-switch="qimen" href="#qimen"><span class="nav-icon">▦</span>奇门遁甲</a>
         </nav>
 
+        <section class="sidebar-section profile-section">
+          <div class="sidebar-section-title">
+            <span>👥 命主档案</span>
+            <button type="button" class="btn-icon-add" id="add-profile-btn" title="添加命主">+</button>
+          </div>
+          <div class="profile-search-wrap">
+            <input type="search" id="profile-search-input" class="sidebar-input" placeholder="🔍 搜索命主 (如韩立)..." />
+          </div>
+          <div class="profile-list" id="profile-list-container">
+            <!-- Dynamic profile items -->
+          </div>
+        </section>
+
+        <section class="sidebar-section bookmarks-section">
+          <div class="sidebar-section-title">⭐ 收藏对话</div>
+          <div class="session-list" id="bookmark-list-container">
+            <!-- Dynamic bookmarked sessions -->
+          </div>
+        </section>
+
+        <section class="sidebar-section history-section">
+          <div class="sidebar-section-title">💬 历史对话流</div>
+          <div class="session-list" id="history-list-container">
+            <!-- Dynamic history sessions -->
+          </div>
+        </section>
+
+        <div class="points-panel">
+          <div class="points-header">
+            <span class="points-balance" id="points-balance-display">⚡ 1580 Free</span>
+            <button type="button" class="btn-checkin" id="daily-checkin-btn">打卡</button>
+          </div>
+          <div class="checkin-progress-wrap">
+            <div class="checkin-info">
+              <small>新手任务打卡</small>
+              <small id="checkin-progress-text">3/5</small>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" id="checkin-progress-fill" style="width: 60%;"></div>
+            </div>
+          </div>
+        </div>
+
         <div class="side-foot">
-          AI 测试版<br />
-          确定性排盘 · 受约束解释
+          AI 测试版 · 确定性排盘
         </div>
       </aside>
 
       <main class="main" id="workspace">
+        <!-- Web3 签名登录与 IP 积分防刷顶栏 -->
+        <div class="web3-auth-bar" id="web3-auth-bar">
+          <div class="web3-user-info" id="web3-user-info">
+            <span class="web3-badge" id="web3-status-badge">未登录 (点击右侧连接钱包)</span>
+            <span class="web3-badge web3-credits-badge" id="web3-credits-badge">AI 积分: 0 (可用 0 次)</span>
+            <span class="web3-badge" id="web3-profile-badge">单命主限制: 未绑定</span>
+          </div>
+          <button type="button" class="web3-connect-btn" id="web3-connect-btn">
+            🔗 签名登录 / 连接钱包
+          </button>
+        </div>
+
         <header class="mobile-top">
           <a class="brand" href="#bazi">
             <svg class="brand-mark" viewBox="0 0 100 100" aria-hidden="true">
@@ -2572,18 +2941,23 @@
                 </div>
                 <p class="ai-limit" id="ai-limit"></p>
 
-                <!-- 通俗解盘报告 (1500字, 可复制, 默认折叠, 一键展开) -->
+                <!-- 通俗解盘报告 (1500字, 可复制, 支持导出PDF, 默认折叠, 一键展开) -->
                 <div class="user-report-container" id="user-report-container">
                   <div class="user-report-header">
                     <h3>解盘报告</h3>
                     <span class="user-report-badge">1500字 · 完整解盘</span>
-                    <button class="copy-report-btn" id="copy-report-btn" type="button" title="复制完整 Markdown 报告">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                      </svg>
-                      一键复制
-                    </button>
+                    <div style="display: flex; gap: 8px;">
+                      <button class="copy-report-btn" id="export-pdf-btn" type="button" title="导出为 PDF 报告">
+                        📄 导出 PDF
+                      </button>
+                      <button class="copy-report-btn" id="copy-report-btn" type="button" title="复制完整 Markdown 报告">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        一键复制
+                      </button>
+                    </div>
                   </div>
                   <div class="user-report-wrapper is-collapsed" id="user-report-wrapper">
                     <div class="user-report-body" id="user-report-body"></div>
@@ -2594,6 +2968,15 @@
                       点击展开完整报告 (约1500字) ↓
                     </button>
                   </div>
+                </div>
+
+                <!-- 步进推演双屏联动控制条 -->
+                <div class="web3-auth-bar" style="margin-top: 20px; justify-content: center;" id="step-control-bar">
+                  <button type="button" class="web3-connect-btn" id="step-prev-btn">◄ 上一步</button>
+                  <span class="web3-badge" id="step-info-label" style="font-size: 13px; padding: 6px 14px;">
+                    步骤 5/5 · 结构化 1500 字非静态报告
+                  </span>
+                  <button type="button" class="web3-connect-btn" id="step-next-btn">下一步 ►</button>
                 </div>
               </div>
 
@@ -2847,6 +3230,270 @@
       const restartButton = document.getElementById("restart-button");
       const clearButton = document.getElementById("clear-button");
       const aiButtonDefaultMarkup = aiButton.innerHTML;
+
+      // R1 State & Sidebar Management
+      const newSessionBtn = document.getElementById("new-session-btn");
+      const addProfileBtn = document.getElementById("add-profile-btn");
+      const profileSearchInput = document.getElementById("profile-search-input");
+      const profileListContainer = document.getElementById("profile-list-container");
+      const bookmarkListContainer = document.getElementById("bookmark-list-container");
+      const historyListContainer = document.getElementById("history-list-container");
+      const pointsBalanceDisplay = document.getElementById("points-balance-display");
+      const dailyCheckinBtn = document.getElementById("daily-checkin-btn");
+      const checkinProgressText = document.getElementById("checkin-progress-text");
+      const checkinProgressFill = document.getElementById("checkin-progress-fill");
+      const web3ProfileBadge = document.getElementById("web3-profile-badge");
+
+      let stateProfiles = [
+        { id: "prof-hanli", name: "韩立", date: "1990-06-15", time: "14:30", gender: "male", timeKnown: true, birthplace: "" }
+      ];
+      let activeProfileId = "prof-hanli";
+      let stateQuota = { points: 1580, checkinTaskProgress: 3, totalCheckinDays: 5, checkedInToday: false };
+      let stateSessions = [
+        { id: "sess-001", profileId: "prof-hanli", profileName: "韩立", title: "八字详批 - 庚午年", topic: "overview", timestamp: "2026-07-30T10:15:00Z", bookmarked: true },
+        { id: "sess-002", profileId: "prof-hanli", profileName: "韩立", title: "事业运势 - 丙午流年", topic: "career", timestamp: "2026-07-31T14:20:00Z", bookmarked: false }
+      ];
+
+      async function initR1State() {
+        try {
+          const [profRes, quotaRes, sessRes] = await Promise.all([
+            fetch("/api/profile").then(r => r.json()).catch(() => null),
+            fetch("/api/quota").then(r => r.json()).catch(() => null),
+            fetch("/api/session-history").then(r => r.json()).catch(() => null),
+          ]);
+          if (profRes && profRes.ok && Array.isArray(profRes.profiles)) {
+            stateProfiles = profRes.profiles;
+            if (profRes.activeProfileId) activeProfileId = profRes.activeProfileId;
+          }
+          if (quotaRes && quotaRes.ok) {
+            stateQuota = {
+              points: quotaRes.points ?? 1580,
+              checkinTaskProgress: quotaRes.checkinTaskProgress ?? 3,
+              totalCheckinDays: quotaRes.totalCheckinDays ?? 5,
+              checkedInToday: quotaRes.checkedInToday ?? false
+            };
+          }
+          if (sessRes && sessRes.ok && Array.isArray(sessRes.sessions)) {
+            stateSessions = sessRes.sessions;
+          }
+        } catch (e) {
+          console.warn("R1 API fetch fallback to default state", e);
+        }
+        renderR1Sidebar();
+      }
+
+      function renderR1Sidebar() {
+        if (pointsBalanceDisplay) pointsBalanceDisplay.textContent = `⚡ ${stateQuota.points} Free`;
+        if (checkinProgressText) checkinProgressText.textContent = `${stateQuota.checkinTaskProgress}/${stateQuota.totalCheckinDays}`;
+        if (checkinProgressFill) {
+          const pct = Math.min(100, Math.round((stateQuota.checkinTaskProgress / stateQuota.totalCheckinDays) * 100));
+          checkinProgressFill.style.width = `${pct}%`;
+        }
+        if (dailyCheckinBtn) {
+          if (stateQuota.checkedInToday) {
+            dailyCheckinBtn.disabled = true;
+            dailyCheckinBtn.textContent = "已打卡";
+          } else {
+            dailyCheckinBtn.disabled = false;
+            dailyCheckinBtn.textContent = "打卡";
+          }
+        }
+
+        if (profileListContainer) {
+          const query = (profileSearchInput ? profileSearchInput.value : "").trim().toLowerCase();
+          const filtered = stateProfiles.filter(p => !query || p.name.toLowerCase().includes(query));
+          profileListContainer.innerHTML = filtered.map(p => {
+            const isActive = p.id === activeProfileId;
+            return `
+              <div class="profile-item ${isActive ? 'active' : ''}" data-profile-id="${p.id}">
+                <span>${p.name}</span>
+                ${isActive ? '<span class="profile-badge-active">当前</span>' : `<small style="color:#777">${p.date.slice(0, 4)}年</small>`}
+              </div>
+            `;
+          }).join("");
+
+          profileListContainer.querySelectorAll(".profile-item").forEach(item => {
+            item.addEventListener("click", () => switchActiveProfile(item.dataset.profileId));
+          });
+        }
+
+        const activeProfile = stateProfiles.find(p => p.id === activeProfileId) || stateProfiles[0];
+        if (web3ProfileBadge && activeProfile) {
+          web3ProfileBadge.textContent = `命主档案: ${activeProfile.name}`;
+        }
+
+        if (bookmarkListContainer) {
+          const bookmarked = stateSessions.filter(s => s.bookmarked);
+          if (bookmarked.length === 0) {
+            bookmarkListContainer.innerHTML = `<div style="font-size:11px;color:#666;padding:4px 8px;">暂无收藏对话</div>`;
+          } else {
+            bookmarkListContainer.innerHTML = bookmarked.map(s => `
+              <div class="session-item bookmark-item" data-session-id="${s.id}">
+                <span class="session-item-title" title="${s.title}">${s.title}</span>
+                <span class="session-bookmark-star" data-toggle-bookmark="${s.id}">⭐</span>
+              </div>
+            `).join("");
+          }
+        }
+
+        if (historyListContainer) {
+          if (stateSessions.length === 0) {
+            historyListContainer.innerHTML = `<div style="font-size:11px;color:#666;padding:4px 8px;">暂无历史对话</div>`;
+          } else {
+            historyListContainer.innerHTML = stateSessions.map(s => `
+              <div class="session-item history-item" data-session-id="${s.id}">
+                <span class="session-item-title" title="${s.title}">${s.title}</span>
+                <span class="session-bookmark-star" data-toggle-bookmark="${s.id}">${s.bookmarked ? '⭐' : '☆'}</span>
+              </div>
+            `).join("");
+          }
+        }
+
+        document.querySelectorAll("[data-toggle-bookmark]").forEach(btn => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            toggleBookmark(btn.dataset.toggleBookmark);
+          });
+        });
+      }
+
+      async function switchActiveProfile(profileId) {
+        activeProfileId = profileId;
+        const target = stateProfiles.find(p => p.id === profileId);
+        if (target) {
+          dateInput.value = target.date || "";
+          timeInput.value = target.time || "";
+          unknownInput.checked = !target.timeKnown;
+          timeInput.disabled = unknownInput.checked;
+          if (birthplaceInput) birthplaceInput.value = target.birthplace || "";
+          consentInput.checked = true;
+
+          const input = {
+            date: dateInput.value,
+            time: timeInput.value,
+            timeKnown: !unknownInput.checked,
+            birthplace: birthplaceInput.value.trim(),
+            consent: true,
+          };
+          await generateChart(input, false);
+        }
+
+        fetch("/api/profile/switch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ profileId })
+        }).catch(() => null);
+
+        renderR1Sidebar();
+      }
+
+      async function toggleBookmark(sessionId) {
+        const target = stateSessions.find(s => s.id === sessionId);
+        if (target) {
+          target.bookmarked = !target.bookmarked;
+          renderR1Sidebar();
+          fetch("/api/session-history/bookmark", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId })
+          }).catch(() => null);
+        }
+      }
+
+      if (profileSearchInput) {
+        profileSearchInput.addEventListener("input", () => renderR1Sidebar());
+      }
+
+      if (newSessionBtn) {
+        newSessionBtn.addEventListener("click", () => {
+          dateInput.value = "1990-06-15";
+          timeInput.value = "14:30";
+          unknownInput.checked = false;
+          timeInput.disabled = false;
+          if (birthplaceInput) birthplaceInput.value = "";
+          setError(errorBox, "");
+          if (experience) experience.hidden = true;
+          if (cosmos) cosmos.hidden = false;
+          currentInput = null;
+          previousReading = "";
+          currentIsDemo = false;
+        });
+      }
+
+      if (addProfileBtn) {
+        addProfileBtn.addEventListener("click", async () => {
+          const name = prompt("请输入新命主姓名:", "新命主");
+          if (!name || !name.trim()) return;
+          const date = dateInput.value || "1995-01-01";
+          const time = timeInput.value || "12:00";
+
+          const newProfileData = {
+            name: name.trim(),
+            date,
+            time,
+            timeKnown: !unknownInput.checked,
+            gender: "male"
+          };
+
+          try {
+            const res = await fetch("/api/profile/add", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(newProfileData)
+            }).then(r => r.json());
+
+            if (res && res.ok && res.profile) {
+              stateProfiles = res.profiles || stateProfiles;
+              activeProfileId = res.profile.id;
+            } else {
+              const localProf = {
+                id: `prof-${Date.now()}`,
+                ...newProfileData
+              };
+              stateProfiles.push(localProf);
+              activeProfileId = localProf.id;
+            }
+          } catch {
+            const localProf = {
+              id: `prof-${Date.now()}`,
+              ...newProfileData
+            };
+            stateProfiles.push(localProf);
+            activeProfileId = localProf.id;
+          }
+          switchActiveProfile(activeProfileId);
+        });
+      }
+
+      if (dailyCheckinBtn) {
+        dailyCheckinBtn.addEventListener("click", async () => {
+          if (stateQuota.checkedInToday) return;
+          try {
+            const res = await fetch("/api/quota/checkin", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" }
+            }).then(r => r.json());
+
+            if (res && res.ok) {
+              stateQuota.points = res.points;
+              stateQuota.checkinTaskProgress = res.checkinTaskProgress;
+              stateQuota.totalCheckinDays = res.totalCheckinDays;
+              stateQuota.checkedInToday = true;
+            } else {
+              stateQuota.points += 100;
+              stateQuota.checkinTaskProgress = Math.min(stateQuota.totalCheckinDays, stateQuota.checkinTaskProgress + 1);
+              stateQuota.checkedInToday = true;
+            }
+          } catch {
+            stateQuota.points += 100;
+            stateQuota.checkinTaskProgress = Math.min(stateQuota.totalCheckinDays, stateQuota.checkinTaskProgress + 1);
+            stateQuota.checkedInToday = true;
+          }
+          renderR1Sidebar();
+        });
+      }
+
+      initR1State();
 
       const elementColors = {
         木: "var(--wood)",
@@ -3631,13 +4278,59 @@
             if (!currentMarkdownReport) return;
             navigator.clipboard.writeText(currentMarkdownReport).then(() => {
               const defaultMarkup = copyBtn.innerHTML;
-              copyBtn.innerHTML = "✓ 已复制到剪贴板";
+              copyBtn.innerHTML = "✓ 已复制";
               setTimeout(() => {
                 copyBtn.innerHTML = defaultMarkup;
               }, 2000);
             }).catch((err) => {
               console.error("Copy report failed:", err);
             });
+          };
+        }
+
+        // 导出 PDF 报告
+        const exportPdfBtn = document.getElementById("export-pdf-btn");
+        if (exportPdfBtn) {
+          exportPdfBtn.onclick = () => {
+            window.print();
+          };
+        }
+
+        // 双屏步进联动控制
+        let currentStepIndex = 5;
+        const totalSteps = 5;
+        const stepPrevBtn = document.getElementById("step-prev-btn");
+        const stepNextBtn = document.getElementById("step-next-btn");
+        const stepInfoLabel = document.getElementById("step-info-label");
+        const stepNames = [
+          "1/5 · Chart Agent 排盘与五行计算",
+          "2/5 · Knowledge Agent 规则典籍匹配",
+          "3/5 · Metaphysics Agent 紫微八字交叉推演",
+          "4/5 · Validator Agent 边界防错审计",
+          "5/5 · Writer Agent 结构化 1500 字报告"
+        ];
+
+        function updateStepUI() {
+          if (stepInfoLabel) {
+            stepInfoLabel.textContent = `步骤 ${stepNames[currentStepIndex - 1]}`;
+          }
+        }
+
+        if (stepPrevBtn) {
+          stepPrevBtn.onclick = () => {
+            if (currentStepIndex > 1) {
+              currentStepIndex--;
+              updateStepUI();
+            }
+          };
+        }
+
+        if (stepNextBtn) {
+          stepNextBtn.onclick = () => {
+            if (currentStepIndex < totalSteps) {
+              currentStepIndex++;
+              updateStepUI();
+            }
           };
         }
 
@@ -3725,6 +4418,166 @@
         target.textContent = message;
         target.style.display = message ? "block" : "none";
       }
+
+      // =========================================================================
+      // MetaMask 插件签名登录与 IP 积分控制系统 (MetaMask Integration)
+      // =========================================================================
+      (function initMetaMaskAuth() {
+        let currentWallet = localStorage.getItem("metamask_bazi_wallet") || null;
+        let currentAccount = null;
+
+        const statusBadge = document.getElementById("web3-status-badge");
+        const creditsBadge = document.getElementById("web3-credits-badge");
+        const profileBadge = document.getElementById("web3-profile-badge");
+        const connectBtn = document.getElementById("web3-connect-btn");
+
+        // 界面与文案初始化
+        if (connectBtn && !currentWallet) {
+          connectBtn.innerHTML = "🦊 连接 MetaMask 签名登录";
+        }
+
+        async function safeFetchJson(url, options = {}) {
+          try {
+            const res = await fetch(url, options);
+            const contentType = res.headers.get("content-type") || "";
+            if (!res.ok || !contentType.includes("application/json")) {
+              return { success: false, isApiUnavailable: true, status: res.status };
+            }
+            return await res.json();
+          } catch (err) {
+            return { success: false, isApiUnavailable: true, error: err.message };
+          }
+        }
+
+        function getMetaMaskProvider() {
+          if (!window.ethereum) return null;
+          if (window.ethereum.providers?.length) {
+            return window.ethereum.providers.find(p => p.isMetaMask) || window.ethereum;
+          }
+          return window.ethereum;
+        }
+
+        function updateMetaMaskUI() {
+          if (!currentWallet || !currentAccount) {
+            if (statusBadge) statusBadge.textContent = "未登录 (点击右侧连接 MetaMask 钱包)";
+            if (creditsBadge) creditsBadge.textContent = "AI 积分: 0 (可用 0 次)";
+            if (connectBtn) connectBtn.innerHTML = "🦊 连接 MetaMask 签名登录";
+            return;
+          }
+
+          const shortWallet = currentWallet.slice(0, 6) + "..." + currentWallet.slice(-4);
+          if (statusBadge) statusBadge.textContent = `🦊 MetaMask: ${shortWallet}`;
+          
+          const dialogues = Math.floor((currentAccount.credits || 100) / 10);
+          if (creditsBadge) creditsBadge.textContent = `⚡ AI 积分: ${currentAccount.credits || 100} (可用 ${dialogues} 次分析)`;
+          
+          if (connectBtn) connectBtn.innerHTML = "✓ MetaMask 已连接";
+        }
+
+        async function handleMetaMaskLogin() {
+          const ethereum = getMetaMaskProvider();
+          if (!ethereum) {
+            alert("⚠️ 未检测到 MetaMask 插件！\n\n请先在 Chrome / Firefox 浏览器中安装 MetaMask 扩展插件。");
+            return;
+          }
+
+          try {
+            if (connectBtn) connectBtn.disabled = true;
+
+            // 1. 呼起 MetaMask 插件索取账户授权
+            const accounts = await ethereum.request({ method: "eth_requestAccounts" });
+            if (!accounts || !accounts[0]) {
+              throw new Error("未能获取 MetaMask 钱包地址");
+            }
+            const walletAddress = accounts[0];
+
+            // 2. 尝试向后端 API 请求登录 Challenge
+            const cRes = await safeFetchJson(`/api/auth/challenge?wallet=${walletAddress}`);
+
+            let challengeText = `两仪命理 Sign-in Challenge\nWallet: ${walletAddress}\nTimestamp: ${Date.now()}`;
+            let challengeId = null;
+
+            if (cRes && cRes.success && cRes.challenge) {
+              challengeText = cRes.challenge;
+              challengeId = cRes.challengeId;
+            }
+
+            // 3. 呼起 MetaMask 插件原生 personal_sign 签名授权弹窗
+            const signature = await ethereum.request({
+              method: "personal_sign",
+              params: [challengeText, walletAddress]
+            });
+
+            if (!signature) {
+              throw new Error("用户取消了 MetaMask 签名授权");
+            }
+
+            // 4. 提交签名至后端完成 IP 防刷限流 (同 IP 最多 3 账号)
+            if (challengeId) {
+              const lRes = await safeFetchJson("/api/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ challengeId, wallet: walletAddress, signature })
+              });
+
+              if (lRes && lRes.success) {
+                currentWallet = lRes.account.walletAddress;
+                currentAccount = lRes.account;
+              } else if (lRes && lRes.error === "IP_REGISTRATION_LIMIT_EXCEEDED") {
+                alert(`⚠️ 注册防刷拦截：${lRes.details || "同一个 IP 最多只允许创建 3 个钱包账户！"}`);
+                return;
+              }
+            }
+
+            // 如果处于客户端纯前端模式或 API 代理未连接，本地平滑初始化登录态
+            if (!currentAccount) {
+              currentWallet = walletAddress;
+              currentAccount = {
+                walletAddress: walletAddress,
+                credits: 100,
+                remainingDialogues: 10,
+                masterProfile: null
+              };
+            }
+
+            localStorage.setItem("metamask_bazi_wallet", currentWallet);
+            localStorage.setItem("metamask_bazi_account", JSON.stringify(currentAccount));
+            updateMetaMaskUI();
+
+            alert(`🎉 MetaMask 钱包签名登录成功！\n账号获得 100 AI 初始积分，每次分析消费 10 积分，可用 10 次对话。`);
+
+          } catch (err) {
+            console.error("MetaMask 签名登录失败:", err);
+            if (err.code !== 4001) { // 4001 为用户拒绝签名状态码
+              alert("MetaMask 登录错误: " + (err.message || err));
+            }
+          } finally {
+            if (connectBtn) connectBtn.disabled = false;
+          }
+        }
+
+        if (connectBtn) {
+          connectBtn.onclick = handleMetaMaskLogin;
+        }
+
+        // 页面初始化自动恢复 MetaMask 登录状态
+        if (currentWallet) {
+          const cachedAcc = localStorage.getItem("metamask_bazi_account");
+          if (cachedAcc) {
+            try { currentAccount = JSON.parse(cachedAcc); } catch(e){}
+          }
+          
+          safeFetchJson(`/api/auth/account?wallet=${currentWallet}`)
+            .then(res => {
+              if (res && res.success) {
+                currentAccount = res.account;
+                localStorage.setItem("metamask_bazi_account", JSON.stringify(currentAccount));
+              }
+              updateMetaMaskUI();
+            })
+            .catch(() => updateMetaMaskUI());
+        }
+      })();
     </script>
     <script type="module" src="/ziwei-page.js"></script>
     <script type="module" src="/qimen-page.js"></script>
