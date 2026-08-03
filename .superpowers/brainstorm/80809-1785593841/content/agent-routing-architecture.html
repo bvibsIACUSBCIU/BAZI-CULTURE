@@ -1,0 +1,45 @@
+<h2>专题 Agent 路由与时延控制</h2>
+<p class="subtitle">每次请求都用确定性命盘事实作为唯一输入来源；专业分析和写作仅调用所需模型，前端只展示真实返回的执行摘要。</p>
+
+<div class="section">
+  <div class="mockup">
+    <div class="mockup-header">请求执行路径</div>
+    <div class="mockup-body">
+      <p><strong>用户入口</strong>：原局总览 / 日主与五行 / 事业 / 财富 / 情感 / 自由提问</p>
+      <p>↓</p>
+      <p><strong>Coordinator</strong>：读取入口、专题和自由提问意图，选择 <strong>一个</strong> 专业 Agent；方法、来源或高风险问题进入专用安全路径。</p>
+      <p>↓</p>
+      <p><strong>Chart Agent</strong>：本地确定性计算与专题事实提取，不调用模型。</p>
+      <p>↓</p>
+      <p><strong>Specialist Agent</strong>：只分析被选中的主题，输出有事实编号、限制和反证的结构草案。</p>
+      <p>↓</p>
+      <p><strong>Validator</strong>：本地校验事实引用、规则来源、禁止预测与专题一致性，不调用模型。</p>
+      <p>↓</p>
+      <p><strong>Writer Agent</strong>：仅根据已通过校验的草案生成本次专题的精简回答。</p>
+    </div>
+  </div>
+</div>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">原局总览</div>
+    <div class="mockup-body">
+      <p>执行五个真实阶段：协调、确定性命盘、总览分析、校验、写作。</p>
+      <p>模型调用：总览分析 + 写作，最多 2 次串行调用。</p>
+      <p>输出：原局重点、日主与五行、结构关系、可继续研读的方向。</p>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">专题或具体问题</div>
+    <div class="mockup-body">
+      <p>协调器只路由一个专业 Agent：日主五行、事业、财富、情感、方法/来源或安全边界。</p>
+      <p>模型调用：专业分析 + 写作，最多 2 次串行调用。</p>
+      <p>输出：只显示本次主题的简短回答，不再渲染固定六段通用报告。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>前端展示原则</h3>
+  <p>显示本次实际执行的 Agent、其输入范围与完成状态；隐藏完整“思考过程”，不伪造 Agent 的内部推理。结果区保留事实标签、限制说明和可继续追问入口。</p>
+</div>

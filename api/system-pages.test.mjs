@@ -84,3 +84,16 @@ test("each system keeps its own form, result target, and deterministic endpoint"
   assert.match(ziweiScript, /getElementById\("ziwei-chart"\)/u);
   assert.match(qimenScript, /getElementById\("qimen-chart"\)/u);
 });
+
+test("Bazi report controls bind expand and copy actions for each rendered report", async () => {
+  const index = await readFile(new URL("index.html", root), "utf8");
+
+  assert.match(index, /if \(userReportWrapper && toggleBtn\) \{/u);
+  assert.match(index, /toggleBtn\.onclick = \(\) => \{/u);
+  assert.match(index, /if \(copyBtn\) \{/u);
+  assert.match(index, /const textToCopy = reportText \|\| currentMarkdownReport;/u);
+  assert.match(index, /await navigator\.clipboard\.writeText\(textToCopy\)/u);
+  assert.match(index, /document\.execCommand\("copy"\)/u);
+  assert.doesNotMatch(index, /if \(false && (?:userReportWrapper && toggleBtn|copyBtn)\)/u);
+  assert.match(index, /点击展开本轮报告 \(约1000字\) ↓/u);
+});

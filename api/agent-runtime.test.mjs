@@ -153,10 +153,38 @@ test("agent runtime returns structured 5-agent pipeline steps", async () => {
   assert.deepEqual(agentNames, [
     "Coordinator Agent",
     "Chart Agent",
-    "Metaphysics Agent",
+    "事业 Agent",
     "Validator Agent",
     "Writer Agent",
   ]);
   assert.equal(result.agent.pipeline[0].roleName, "协调引擎");
   assert.equal(result.agent.pipeline[1].roleName, "排盘与结构计算");
+});
+
+test("runtime executes the selected specialist and writer as two separate model stages", async () => {
+  const calls = [];
+  const runtime = createAgentRuntime({
+    generate: async (input) => {
+      calls.push(input);
+      return {
+        text: input.phase === "writer" ? "事业专题回答" : "事业专题草案",
+        reading: { sections: [{}, {}] },
+      };
+    },
+  });
+
+  const result = await runtime.run({
+    chatId: 10,
+    session: SESSION,
+    topic: "career",
+    mode: "topic",
+  });
+
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].phase, "specialist");
+  assert.equal(calls[1].phase, "writer");
+  assert.equal(result.agent.route.key, "career");
+  assert.equal(result.agent.pipeline[2].agent, "事业 Agent");
+  assert.equal(result.agent.pipeline[4].agent, "Writer Agent");
+  assert.equal("thinking" in result.agent.pipeline[2], false);
 });

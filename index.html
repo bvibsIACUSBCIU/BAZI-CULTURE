@@ -2546,8 +2546,8 @@
               <div class="agent-loading-card" id="agent-loading-card" hidden>
                 <div class="loading-header">
                   <div class="loading-pulse-ring"></div>
-                  <strong>多 Agent 顺序协同推演中…</strong>
-                  <span class="loading-stage-badge" id="loading-stage-badge">1/5 Coordinator Agent</span>
+                  <strong>协调器正在路由本次请求…</strong>
+                  <span class="loading-stage-badge" id="loading-stage-badge">路由中</span>
                 </div>
                 <div class="loading-steps-flow" id="loading-steps-flow"></div>
               </div>
@@ -2559,7 +2559,7 @@
                 <div class="agent-pipeline-card" id="agent-pipeline-card">
                   <div class="agent-pipeline-summary">
                     <span class="pipeline-badge-tag">TIANFU MULTI-AGENT PIPELINE</span>
-                    <strong>推演步骤与 Agent 角色链 (5/5 已完成)</strong>
+                    <strong id="pipeline-title">本轮实际执行的 Agent 链</strong>
                   </div>
                   <div class="pipeline-nodes-container" id="pipeline-nodes-container"></div>
                 </div>
@@ -2570,14 +2570,14 @@
                   <strong>自我观察</strong>
                   <ol class="reflection-list" id="reflection-list"></ol>
                 </div>
-                <p class="ai-limit" id="ai-limit"></p>
+                <p class="ai-limit" id="ai-limit" hidden></p>
 
-                <!-- 通俗解盘报告 (1500字, 可复制, 默认折叠, 一键展开) -->
+                <!-- 本轮动态解盘报告（约 1000 字，可复制，默认折叠） -->
                 <div class="user-report-container" id="user-report-container">
                   <div class="user-report-header">
                     <h3>解盘报告</h3>
-                    <span class="user-report-badge">1500字 · 完整解盘</span>
-                    <button class="copy-report-btn" id="copy-report-btn" type="button" title="复制完整 Markdown 报告">
+                    <span class="user-report-badge">约1000字 · 本轮解盘</span>
+                    <button class="copy-report-btn" id="copy-report-btn" type="button" title="复制当前已生成的解盘报告">
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -2591,7 +2591,7 @@
                   </div>
                   <div class="user-report-footer">
                     <button class="toggle-report-btn" id="toggle-report-btn" type="button">
-                      点击展开完整报告 (约1500字) ↓
+                      点击展开本轮报告 (约1000字) ↓
                     </button>
                   </div>
                 </div>
@@ -3025,6 +3025,41 @@
           throw err;
         });
 
+        // 加载区只说明正在发生的协调器路由；完成后由服务端返回的实际 Agent 链取代它。
+        if (loadingStageBadge) loadingStageBadge.textContent = "协调器正在路由";
+        if (loadingStepsFlow) {
+          const routingNode = document.createElement("div");
+          routingNode.className = "loading-step-item is-active";
+          routingNode.replaceChildren(Object.assign(document.createElement("strong"), {
+            textContent: "Coordinator Agent · 正在根据本次请求选择专业 Agent",
+          }));
+          loadingStepsFlow.replaceChildren(routingNode);
+        }
+        try {
+          const payload = await apiPromise;
+          previousReading = payload.ai.text;
+          renderAi(payload.ai.reading, payload.ai.agent);
+          intentPicker.classList.add("segmented-mode");
+          intentPicker.hidden = false;
+          updateSegmentedTabsActiveState(currentTopic, isQuestion);
+          if (agentLoadingCard) agentLoadingCard.hidden = true;
+          aiOutput.hidden = false;
+          questionArea.hidden = false;
+          feedbackPanel.hidden = false;
+          feedbackStatus.textContent = "";
+          questionInput.value = "";
+          trackEvent("ai_generated", { choice: isQuestion ? "question" : currentTopic, demo: currentIsDemo });
+        } catch (error) {
+          if (agentLoadingCard) agentLoadingCard.hidden = true;
+          setError(aiError, error.message || "AI 解读暂时不可用。");
+        } finally {
+          clearStepTimers();
+          setAiLoading(false);
+          cosmos.classList.remove("is-loading");
+          aiButton.innerHTML = aiButtonDefaultMarkup;
+        }
+        return;
+
         // 多 Agent 思考过程内容库与定义
         const topicLabels = { overview: "原局总览", career: "事业研读", wealth: "财富研读", relationship: "情感研读" };
         const topicName = topicLabels[currentTopic] || "原局总览";
@@ -3393,13 +3428,17 @@
           relationship: "情感研读",
         };
         topicMeta.textContent =
-          (topicLabels[reading.topic] || "原局总览") +
+          (agent?.route?.label || topicLabels[reading.topic] || "原局总览") +
           " · 证据完整度：" +
           (reading.confidence === "moderate" ? "中等" : "有限");
         aiSummary.textContent = reading.summary;
 
         // Render Tianfu Multi-Agent Pipeline steps (Fusion 1)
         if (pipelineNodesContainer && agent && Array.isArray(agent.pipeline)) {
+          const pipelineTitle = document.getElementById("pipeline-title");
+          if (pipelineTitle) {
+            pipelineTitle.textContent = `本轮实际执行的 Agent 链（${agent.pipeline.length} 个阶段）`;
+          }
           pipelineNodesContainer.replaceChildren(
             ...agent.pipeline.map((stepNode, idx) => {
               const nodeEl = document.createElement("div");
@@ -3412,7 +3451,6 @@
                   <span class="node-status-check">✓ 已完成</span>
                 </div>
                 <div class="node-detail-text">${stepNode.detail}</div>
-                ${stepNode.thinking ? `<div class="node-thinking-block"><strong>思考过程：</strong>${stepNode.thinking}</div>` : ""}
               `;
               return nodeEl;
             }),
@@ -3551,9 +3589,9 @@
         });
         reflectionList.replaceChildren(reflectionContainer);
 
-        aiLimit.textContent = "边界：" + reading.limitations;
+        aiLimit.hidden = true;
 
-        // 渲染最下方的通俗解盘报告 (直接显示AI文字内容，Markdown格式，可一键复制，默认折叠)
+        // 只展示本轮专题结果；不再以固定六维通用报告覆盖专题回答。
         const userReportBody = document.getElementById("user-report-body");
         const userReportWrapper = document.getElementById("user-report-wrapper");
         const toggleBtn = document.getElementById("toggle-report-btn");
@@ -3561,7 +3599,22 @@
 
         let currentMarkdownReport = "";
 
-        if (userReportBody) {
+        if (userReportWrapper && typeof reading.userReport === "string") {
+          userReportWrapper.hidden = false;
+          currentMarkdownReport = reading.userReport;
+          const block = document.createElement("article");
+          block.className = "report-section-block";
+          const title = document.createElement("h4");
+          title.className = "report-section-title";
+          title.textContent = `${agent?.route?.label || "本轮解盘报告"} · 本轮回复`;
+          const body = document.createElement("p");
+          body.className = "report-section-text";
+          body.textContent = reading.userReport;
+          block.append(title, body);
+          userReportBody?.append(block);
+        }
+        if (userReportWrapper && typeof reading.userReport !== "string") userReportWrapper.hidden = true;
+        if (false && userReportBody) {
           const reportData = reading.userReport || {};
 
           if (typeof reportData === "string") {
@@ -3607,10 +3660,10 @@
           }
         }
 
-        // 默认恢复折叠状态
+        // 每次渲染报告后恢复折叠状态，并重新绑定本轮控件。
         if (userReportWrapper && toggleBtn) {
           userReportWrapper.classList.add("is-collapsed");
-          toggleBtn.textContent = "点击展开完整报告 (约1500字) ↓";
+          toggleBtn.textContent = "点击展开本轮报告 (约1000字) ↓";
 
           toggleBtn.onclick = () => {
             const isCollapsed = userReportWrapper.classList.contains("is-collapsed");
@@ -3619,25 +3672,42 @@
               toggleBtn.textContent = "折叠报告 ↑";
             } else {
               userReportWrapper.classList.add("is-collapsed");
-              toggleBtn.textContent = "点击展开完整报告 (约1500字) ↓";
+              toggleBtn.textContent = "点击展开本轮报告 (约1000字) ↓";
               document.getElementById("user-report-container")?.scrollIntoView({ behavior: "smooth", block: "start" });
             }
           };
         }
 
-        // 一键复制 Markdown 报告
+        // 一键复制当前页面已生成的所有报告；连续提问时不会遗漏前文。
         if (copyBtn) {
-          copyBtn.onclick = () => {
-            if (!currentMarkdownReport) return;
-            navigator.clipboard.writeText(currentMarkdownReport).then(() => {
+          copyBtn.onclick = async () => {
+            const reportText = [...(userReportBody?.querySelectorAll(".report-section-block") || [])]
+              .map((block) => block.innerText.trim())
+              .filter(Boolean)
+              .join("\n\n");
+            const textToCopy = reportText || currentMarkdownReport;
+            if (!textToCopy) return;
+            try {
+              if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(textToCopy);
+              } else {
+                const fallback = document.createElement("textarea");
+                fallback.value = textToCopy;
+                fallback.style.position = "fixed";
+                fallback.style.opacity = "0";
+                document.body.append(fallback);
+                fallback.select();
+                document.execCommand("copy");
+                fallback.remove();
+              }
               const defaultMarkup = copyBtn.innerHTML;
               copyBtn.innerHTML = "✓ 已复制到剪贴板";
               setTimeout(() => {
                 copyBtn.innerHTML = defaultMarkup;
               }, 2000);
-            }).catch((err) => {
+            } catch (err) {
               console.error("Copy report failed:", err);
-            });
+            }
           };
         }
 

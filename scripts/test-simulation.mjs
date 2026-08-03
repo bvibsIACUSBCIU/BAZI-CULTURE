@@ -1,6 +1,7 @@
 import { calculateBazi } from "../lib/metaphysics/bazi-engine.js";
 import { createAiReportHandler } from "../api/ai-report.js";
 import { getEnv } from "../lib/runtime/env.js";
+import { generateAiReading } from "../lib/agent/ai-service.js";
 
 async function runSimulation() {
   const input = {
@@ -20,7 +21,17 @@ async function runSimulation() {
   console.log("==================================================\n");
 
   let result;
-  const handler = createAiReportHandler();
+  const modelStages = [];
+  const handler = createAiReportHandler({
+    generate: async (input) => {
+      const startedAt = Date.now();
+      console.log(`【模型阶段开始】${input.phase} · ${input.route?.specialist || "未路由"}`);
+      const output = await generateAiReading(input);
+      modelStages.push({ phase: input.phase, model: output.model, ms: Date.now() - startedAt });
+      console.log(`【模型阶段完成】${input.phase} · ${output.model} · ${Date.now() - startedAt}ms`);
+      return output;
+    },
+  });
   await handler(
     { method: "POST", body: input, socket: { remoteAddress: "127.0.0.1" }, headers: {} },
     {
@@ -56,23 +67,27 @@ async function runSimulation() {
       console.log(`  限制/反证: ${s.counterpoints.join("; ")}`);
     });
 
-    console.log("\n【4. 1500字动态通俗解盘报告 (User Report)】");
-    console.log("\n### 核心画像");
-    console.log(ai.reading.userReport.corePortrait);
-    console.log("\n### 事业发展模式");
-    console.log(ai.reading.userReport.career);
-    console.log("\n### 感情与婚姻");
-    console.log(ai.reading.userReport.relationship);
-    console.log("\n### 健康状况");
-    console.log(ai.reading.userReport.health);
-    console.log("\n### 财运分析");
-    console.log(ai.reading.userReport.wealth);
-    console.log("\n### 当前阶段建议");
-    console.log(ai.reading.userReport.currentStage);
+    console.log("\n【4. 本轮路由与专题化输出】");
+    console.log("路由:", `${ai.agent.route?.key || "unknown"} · ${ai.agent.route?.specialist || "unknown"}`);
+    console.log("模型阶段:", JSON.stringify(modelStages));
+    console.log("章节数:", ai.reading.sections.length);
+    const report = ai.reading.userReport || "";
+    const reportHasInternalMeta = /回退|服务恢复|研读边界|边界：/u.test(report);
+    if (typeof report !== "string" || report.length < 800 || reportHasInternalMeta) {
+      throw new Error(
+        `报告校验失败：length=${report.length}，包含内部说明=${reportHasInternalMeta}`,
+      );
+    }
+    console.log("报告长度:", `${report.length} 字符`);
+    console.log("\n【5. 动态解盘报告】");
+    console.log(report);
     console.log("==================================================");
   } else {
     console.error("测试失败:", result);
   }
 }
 
-runSimulation();
+await runSimulation().catch((error) => {
+  console.error("模拟测试异常:", error);
+  process.exitCode = 1;
+});

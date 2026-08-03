@@ -84,7 +84,7 @@ test("SIMULATION 1: End-to-End AI report pipeline with Markdown formatting", asy
   assert.doesNotMatch(JSON.stringify(responsePayload.ai.reading), /[💡🚀💗🌿💰🎯📜✨]/u);
 });
 
-test("SIMULATION 2: Fallback mode 1500-word Markdown report verification", async () => {
+test("SIMULATION 2: Fallback mode creates a dynamic 1000-character report from live chart facts", async () => {
   const chart = await calculateBazi({ date: "1995-05-20", time: "10:00" });
   const fallbackResult = buildFallbackAiResult({
     chart,
@@ -93,32 +93,39 @@ test("SIMULATION 2: Fallback mode 1500-word Markdown report verification", async
   });
 
   assert.ok(fallbackResult.reading);
-  assert.ok(fallbackResult.reading.userReport);
-
-  const userReport = fallbackResult.reading.userReport;
-  const sectionKeys = ["corePortrait", "career", "relationship", "health", "wealth", "currentStage"];
-  
-  for (const key of sectionKeys) {
-    assert.ok(userReport[key], `Section ${key} should not be empty`);
-    assert.ok(userReport[key].length >= 200, `Section ${key} should contain detailed text (got ${userReport[key].length} chars)`);
-  }
-
-  const combinedLength = Object.values(userReport).reduce((acc, text) => acc + text.length, 0);
-  assert.ok(combinedLength >= 1400, `Fallback combined report length should be >= 1400, got ${combinedLength}`);
-
-  // Emojis check: verify zero emojis in fallback output
-  assert.doesNotMatch(JSON.stringify(userReport), /[💡🚀💗🌿💰🎯📜✨]/u);
+  assert.equal(typeof fallbackResult.reading.userReport, "string");
+  assert.ok(fallbackResult.reading.userReport.length >= 800);
+  assert.match(fallbackResult.reading.userReport, new RegExp(chart.dayMaster.stem));
+  assert.match(fallbackResult.reading.userReport, /子平读法/u);
+  assert.match(fallbackResult.reading.userReport, /月令.*日主/u);
+  assert.doesNotMatch(fallbackResult.reading.userReport, /回退|服务恢复|研读边界|结语：本报告仅/u);
+  assert.ok(fallbackResult.reading.sections.length >= 2);
+  assert.ok(
+    fallbackResult.reading.sections.some((section) =>
+      section.supportingFacts.join(" ").includes(chart.dayMaster.stem),
+    ),
+  );
 });
 
-test("SIMULATION 3: Verify different birth charts generate non-identical dynamic reports", async () => {
+test("SIMULATION 4: Career fallback reads as a focused professional career report", async () => {
+  const chart = await calculateBazi({ date: "1995-05-20", time: "10:00" });
+  const fallbackResult = buildFallbackAiResult({ chart, topic: "career" });
+  const report = fallbackResult.reading.userReport;
+
+  assert.match(report, /事业发展模式/u);
+  assert.match(report, /正官|七杀|正印|偏印|食神|伤官/u);
+  assert.doesNotMatch(report, /财富研读|情感研读|健康状况|回退|边界/u);
+});
+
+test("SIMULATION 3: Different charts produce distinct fact-derived fallback sections", async () => {
   const chartA = await calculateBazi({ date: "1995-05-20", time: "10:00" });
   const chartB = await calculateBazi({ date: "1988-11-11", time: "14:30" });
 
   const resultA = buildFallbackAiResult({ chart: chartA, topic: "overview" });
   const resultB = buildFallbackAiResult({ chart: chartB, topic: "overview" });
 
-  const reportA = JSON.stringify(resultA.reading.userReport);
-  const reportB = JSON.stringify(resultB.reading.userReport);
+  const reportA = JSON.stringify(resultA.reading.sections);
+  const reportB = JSON.stringify(resultB.reading.sections);
 
   assert.notEqual(reportA, reportB, "Reports for different charts must not be identical");
   assert.ok(reportA.includes(chartA.dayMaster.stem), "Report A should mention chart A day master");
