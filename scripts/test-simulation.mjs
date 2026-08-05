@@ -2,6 +2,7 @@ import { createAiReportHandler } from "../api/ai-report.js";
 import { profileHandler } from "../api/profile.js";
 import { quotaHandler } from "../api/quota.js";
 import { sessionHistoryHandler } from "../api/session-history.js";
+import { MemorySessionStore } from "../lib/runtime/session-store.js";
 
 async function callHandler(handler, req) {
   let result;
@@ -31,7 +32,7 @@ async function runSimulation() {
   };
 
   console.log("==================================================");
-  console.log("【模拟测试输入】");
+  console.log("【6-Stage 命理 AI Pipeline 模拟测试】");
   console.log("生日:", input.date);
   console.log("时间:", input.time);
   console.log("地点:", input.birthplace);
@@ -78,7 +79,9 @@ async function runSimulation() {
   console.log("\n==================================================");
 
   let result;
-  const handler = createAiReportHandler();
+  const mockStore = new MemorySessionStore();
+  const handler = createAiReportHandler({ store: mockStore, mockAi: true });
+  
   await handler(
     { method: "POST", body: input, socket: { remoteAddress: "127.0.0.1" }, headers: {} },
     {
@@ -95,37 +98,39 @@ async function runSimulation() {
 
   if (result && result.code === 200) {
     const { chart, ai } = result.body;
-    console.log("【1. 确定性历法排盘结果 (Chart)】");
+    console.log("【1. 100% 确定性历法排盘结果 (Chart)】");
     console.log("四柱:", `年:${chart.pillars.year} 月:${chart.pillars.month} 日:${chart.pillars.day} 时:${chart.pillars.time}`);
     console.log("日主:", `${chart.dayMaster.stem}·${chart.dayMaster.element}`);
     console.log("表层五行计数:", JSON.stringify(chart.elementCounts));
     console.log("透干十神:", JSON.stringify(chart.tenGods?.stems));
 
-    console.log("\n【2. 多 Agent 推演 Pipeline】");
+    console.log("\n【2. 6-Stage 命理分析 Pipeline】");
     ai.agent.pipeline.forEach((p) => {
-      console.log(`[${p.agent}] ${p.roleName} -> ${p.action}`);
+      console.log(`[Stage] ${p.roleName} -> ${p.action}`);
     });
 
-    console.log("\n【3. 事实依据章节 (Sections)】");
+    console.log("\n【3. 组分析事实依据 (Sections)】");
     ai.reading.sections.forEach((s) => {
-      console.log(`- 【${s.title}】 (依据: ${s.basis})`);
-      console.log(`  正文: ${s.body}`);
-      console.log(`  事实依据: ${s.supportingFacts.join("; ")}`);
-      console.log(`  限制/反证: ${s.counterpoints.join("; ")}`);
+      console.log(`- 【${s.title}】`);
+      console.log(`  结论: ${s.body}`);
+      console.log(`  依据: ${s.supportingFacts.join("; ")}`);
     });
 
-    console.log("\n【4. 1500字动态通俗解盘报告 (User Report)】");
-    console.log("\n### 核心画像");
+    console.log("\n【4. 全盘 Markdown 运势报告 (Report Markdown)】");
+    console.log(ai.reportMarkdown || "（报告正文）");
+
+    console.log("\n【5. 动态通俗解盘 (User Report)】");
+    console.log("### 核心画像");
     console.log(ai.reading.userReport.corePortrait);
-    console.log("\n### 事业发展模式");
+    console.log("### 事业发展");
     console.log(ai.reading.userReport.career);
-    console.log("\n### 感情与婚姻");
+    console.log("### 感情婚姻");
     console.log(ai.reading.userReport.relationship);
-    console.log("\n### 健康状况");
+    console.log("### 健康调理");
     console.log(ai.reading.userReport.health);
-    console.log("\n### 财运分析");
+    console.log("### 财运模式");
     console.log(ai.reading.userReport.wealth);
-    console.log("\n### 当前阶段建议");
+    console.log("### 当前建议");
     console.log(ai.reading.userReport.currentStage);
     console.log("==================================================");
   } else {

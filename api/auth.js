@@ -1,4 +1,5 @@
 import { defaultAuthService } from '../lib/runtime/auth-service.js';
+import { defaultSessionHistoryService } from '../lib/runtime/session-history-service.js';
 
 /**
  * 客户端 IP 获取助手
@@ -15,6 +16,19 @@ export function getClientIp(req) {
   if (forwardedFor) return String(forwardedFor.split(',')[0]).trim();
   if (realIp) return String(realIp).trim();
   return '127.0.0.1';
+}
+
+function buildAccountResponse(account) {
+  const sessionCount = defaultSessionHistoryService.getSessions(account.walletAddress).length;
+  return {
+    walletAddress: account.walletAddress,
+    credits: account.credits,
+    remainingDialogues: Math.floor(account.credits / 10),
+    masterProfile: account.masterProfile,
+    registeredIp: account.registeredIp,
+    profileCount: account.masterProfile ? 1 : 0,
+    sessionCount
+  };
 }
 
 /**
@@ -65,13 +79,7 @@ export async function handleAuthRequest(req) {
       return createJsonResponse({
         success: true,
         ok: true,
-        account: {
-          walletAddress: account.walletAddress,
-          credits: account.credits,
-          remainingDialogues: Math.floor(account.credits / 10),
-          masterProfile: account.masterProfile,
-          registeredIp: account.registeredIp
-        }
+        account: buildAccountResponse(account)
       });
     }
 
@@ -87,12 +95,7 @@ export async function handleAuthRequest(req) {
       return createJsonResponse({
         success: true,
         ok: true,
-        account: {
-          walletAddress: updatedAccount.walletAddress,
-          credits: updatedAccount.credits,
-          remainingDialogues: Math.floor(updatedAccount.credits / 10),
-          masterProfile: updatedAccount.masterProfile
-        }
+        account: buildAccountResponse(updatedAccount)
       });
     }
 
@@ -109,12 +112,7 @@ export async function handleAuthRequest(req) {
       return createJsonResponse({
         success: true,
         ok: true,
-        account: {
-          walletAddress: account.walletAddress,
-          credits: account.credits,
-          remainingDialogues: Math.floor(account.credits / 10),
-          masterProfile: account.masterProfile
-        }
+        account: buildAccountResponse(account)
       });
     }
 

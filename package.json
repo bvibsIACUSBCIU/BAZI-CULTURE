@@ -7,7 +7,7 @@
     "build": "echo 'No static build step required'",
     "dev": "node scripts/local-polling.mjs",
     "dev:web": "node scripts/web-dev.mjs",
-    "test": "node --test api/*.test.mjs",
+    "test": "node --test test/*.test.mjs",
     "set:webhook": "node scripts/set-webhook.mjs"
   },
   "dependencies": {

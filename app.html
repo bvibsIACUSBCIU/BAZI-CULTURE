@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="两仪命理 AI 工作台 — 基于八字、紫微斗数、奇门遁甲的多 Agent 命理推演系统">
+    <title>两仪 BAZI AGENT - 工作台</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;500;600;700&family=Noto+Serif+SC:wght@600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="app.css">
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+</head>
+<body>
+    <!-- 移动端 Top Header -->
+    <header class="mobile-header">
+        <button id="menu-btn" class="icon-btn" title="菜单">≡</button>
+        <span class="logo-text">两仪 BAZI AGENT</span>
+        <button id="wallet-btn-mobile" class="wallet-btn">连接钱包</button>
+    </header>
+
+    <div class="app-container">
+        <!-- 左侧边栏 (桌面可收缩折叠) -->
+        <aside class="sidebar-left" id="sidebar-left">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-title">两仪 BAZI AGENT</span>
+                </div>
+                <button class="icon-btn sidebar-toggle-btn" id="collapse-left-btn" title="收起边栏">◀</button>
+            </div>
+            
+            <button class="new-chat-btn" id="new-chat-btn">
+                <span class="btn-text">+ 新建对话</span>
+            </button>
+
+            <div class="sidebar-scroll-area">
+                <!-- 命主列表 -->
+                <div class="sidebar-section">
+                    <div class="section-title">
+                        <span>命主列表</span>
+                        <button class="add-btn" id="add-profile-btn" title="新增命主">+</button>
+                    </div>
+                    <div class="profile-list" id="profile-list">
+                        <!-- Profile items dynamically injected -->
+                    </div>
+                </div>
+
+                <!-- 收藏对话 -->
+                <div class="sidebar-section">
+                    <div class="section-title">
+                        <span>收藏对话</span>
+                    </div>
+                    <div class="chat-list" id="bookmark-list">
+                        <!-- Bookmarked chats -->
+                    </div>
+                </div>
+
+                <!-- 历史对话 -->
+                <div class="sidebar-section">
+                    <div class="section-title">
+                        <span>历史对话</span>
+                    </div>
+                    <div class="chat-list" id="history-list">
+                        <!-- History chats -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="footer-account-info">
+                    <div class="status-indicator"></div>
+                    <span class="account-status-text">全功能版 · 无限对话</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 中间聊天区 -->
+        <main class="chat-area">
+            <header class="chat-header">
+                <div class="current-profile-wrapper">
+                    <div class="current-profile" id="current-profile-display">
+                        <span class="avatar-sm" id="header-avatar">?</span>
+                        <div class="profile-meta">
+                            <div class="profile-name-row">
+                                <span class="name" id="header-name">请选择命主</span>
+                                <span class="daymaster-pill" id="header-daymaster" style="display:none;">丁火日主</span>
+                            </div>
+                            <span class="date" id="header-date">1990-06-15</span>
+                        </div>
+                        <span class="arrow">▼</span>
+                    </div>
+                    <!-- 快捷切换命主下拉菜单 -->
+                    <div class="profile-dropdown" id="profile-dropdown" style="display:none;">
+                        <!-- Profile items -->
+                    </div>
+                </div>
+
+                <div class="header-actions">
+                    <button class="icon-btn" id="share-btn" title="分享">分享</button>
+                    <button id="wallet-btn" class="wallet-btn">连接钱包</button>
+                </div>
+            </header>
+
+            <div class="chat-content" id="chat-content">
+                <!-- 初始等待状态 -->
+                <div class="waiting-state" id="waiting-state">
+                    <div class="taiji-container">
+                        <svg viewBox="0 0 240 240" class="taiji-svg">
+                            <defs>
+                                <radialGradient id="gold-glow" cx="50%" cy="50%" r="50%">
+                                    <stop offset="0%" stop-color="#e8c87a" stop-opacity="0.5"/>
+                                    <stop offset="100%" stop-color="#09090b" stop-opacity="0"/>
+                                </radialGradient>
+                            </defs>
+                            <circle cx="120" cy="120" r="110" fill="url(#gold-glow)"/>
+                            <!-- 12地支外圈 -->
+                            <g class="zodiac-ring">
+                                <text x="120" y="32" class="zodiac">子</text>
+                                <text x="162" y="42" class="zodiac">丑</text>
+                                <text x="194" y="74" class="zodiac">寅</text>
+                                <text x="204" y="124" class="zodiac">卯</text>
+                                <text x="194" y="174" class="zodiac">辰</text>
+                                <text x="162" y="206" class="zodiac">巳</text>
+                                <text x="120" y="216" class="zodiac">午</text>
+                                <text x="78"  y="206" class="zodiac">未</text>
+                                <text x="46"  y="174" class="zodiac">申</text>
+                                <text x="36"  y="124" class="zodiac">酉</text>
+                                <text x="46"  y="74"  class="zodiac">戌</text>
+                                <text x="78"  y="42"  class="zodiac">亥</text>
+                            </g>
+                            <!-- 中心太极图 -->
+                            <g class="taiji-core">
+                                <circle cx="120" cy="120" r="48" fill="#141418" stroke="#d3a85e" stroke-width="2"/>
+                                <path d="M120,72 A24,24 0 0,1 120,120 A24,24 0 0,0 120,168 A48,48 0 0,1 120,72" fill="#d3a85e"/>
+                                <circle cx="120" cy="96" r="6" fill="#d3a85e"/>
+                                <circle cx="120" cy="144" r="6" fill="#141418"/>
+                            </g>
+                        </svg>
+                    </div>
+                    <div class="welcome-text">
+                        <h2>两仪 AI 命理协作工作台</h2>
+                        <p class="subtitle">20 位命理 Agent 协同为您解读八字干支、紫微斗数与奇门遁甲</p>
+                    </div>
+
+                    <!-- 快捷问题 Chip 按钮 -->
+                    <div class="action-chips">
+                        <button class="chip" data-prompt="请从八字格局与财官能量帮我分析一下近期的事业运势发展方向。">事业运势分析</button>
+                        <button class="chip" data-prompt="请帮我分析命盘中的财星强弱与理财模式，如何稳健积累资产？">财运格局评估</button>
+                        <button class="chip" data-prompt="我的夫妻宫与感情桃花星表现如何？有哪些相处调适建议？">婚恋感情研读</button>
+                        <button class="chip" data-prompt="基于表层五行多寡，我的健康调理与精力管理有哪些注意事项？">健康体质调和</button>
+                    </div>
+                </div>
+
+                <!-- 聊天消息列表 -->
+                <div class="message-list" id="message-list" style="display:none;">
+                    <!-- Messages dynamically injected -->
+                </div>
+            </div>
+
+            <!-- 输入区域 -->
+            <div class="chat-input-area">
+                <div class="mode-selector">
+                    <span class="mode-label">推演模式：</span>
+                    <label class="mode-pill active">
+                        <input type="radio" name="chat-mode" value="long" checked> 深度长期
+                    </label>
+                    <label class="mode-pill">
+                        <input type="radio" name="chat-mode" value="short"> 快速短期
+                    </label>
+                    <label class="mode-pill">
+                        <input type="radio" name="chat-mode" value="dual"> 双人合盘
+                    </label>
+                </div>
+
+                <div class="input-box-card">
+                    <div class="input-tools">
+                        <button class="tool-chip" id="tool-chart-btn" title="查看命盘">命盘</button>
+                        <button class="tool-chip" id="tool-dual-btn" title="双人合盘">双人</button>
+                        <button class="tool-chip" id="tool-classic-btn" title="查阅古籍">典籍</button>
+                    </div>
+                    <div class="input-field-group">
+                        <textarea id="chat-input" rows="1" placeholder="请输入您想了解的命理问题（例：我的事业发展优势在哪？）..."></textarea>
+                        <button class="send-btn" id="send-btn" title="发送问题">发送</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 右侧命盘面板 (桌面可收缩折叠) -->
+        <aside class="sidebar-right" id="sidebar-right">
+            <div class="panel-header">
+                <div class="tabs" id="panel-tabs">
+                    <button class="tab active" data-target="tab-bazi">基础四柱</button>
+                    <button class="tab" data-target="tab-ziwei">紫微斗数</button>
+                    <button class="tab" data-target="tab-qimen">奇门结构</button>
+                    <button class="tab" data-target="tab-report">分析报告</button>
+                </div>
+                <button class="icon-btn sidebar-toggle-btn" id="collapse-right-btn" title="收起命盘">▶</button>
+            </div>
+            
+            <div class="panel-content">
+                <!-- 1. 基础四柱 Tab (参考图片1) -->
+                <div class="tab-pane active" id="tab-bazi">
+                    <div class="bazi-det-wrapper">
+                        <div class="det-sub-header">DETERMINISTIC · CALCULATED</div>
+                        <h2 class="det-main-title">基础四柱</h2>
+
+                        <div class="bazi-det-card">
+                            <!-- 4柱干支大表 -->
+                            <div class="bazi-4pillars-grid" id="bazi-4pillars-grid">
+                                <!-- 年月日时柱 动态计算生成 -->
+                            </div>
+
+                            <!-- 色彩说明 Legend -->
+                            <div class="bazi-legend-row">
+                                <span class="legend-item"><span class="dot legend-same"></span> 同气微光</span>
+                                <span class="legend-item"><span class="dot legend-gen"></span> 相生微光</span>
+                                <span class="legend-item"><span class="dot legend-ke"></span> 相克微光</span>
+                            </div>
+
+                            <!-- DAY MASTER 日主 -->
+                            <div class="daymaster-card-box">
+                                <div class="dm-sub-label">DAY MASTER · 日主</div>
+                                <div class="dm-val-text" id="dm-val-display">壬 · 水</div>
+                            </div>
+
+                            <!-- 五行条形图 -->
+                            <div class="wuxing-bars-group" id="wuxing-bars-group">
+                                <!-- 5行统计柱状图 -->
+                            </div>
+
+                            <!-- 底部边界校验报告 -->
+                            <div class="bazi-check-footer">
+                                <span class="check-title">规则与边界校验报告</span>
+                                <span class="check-tag">✓ 历法引擎已校验 | UTC+8 | 四柱完整</span>
+                                <span class="check-arrow">▼</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. 紫微斗数 Tab (参考图片2) -->
+                <div class="tab-pane" id="tab-ziwei">
+                    <div class="ziwei-det-wrapper">
+                        <div class="det-sub-header">DETERMINISTIC · CALCULATED</div>
+                        <h2 class="det-main-title">紫微十二宫命盘</h2>
+                        <div class="det-notice-text">程序独立计算星曜与宫位；当前不使用 AI 生成吉凶断语。</div>
+
+                        <!-- 命盘头信息标签行 -->
+                        <div class="ziwei-meta-pills" id="ziwei-meta-pills">
+                            <span class="pill-tag">二〇〇〇年腊月初七</span>
+                            <span class="pill-tag">未时</span>
+                            <span class="pill-tag">命主 破军</span>
+                            <span class="pill-tag">身主 文昌</span>
+                            <span class="pill-tag">木三局</span>
+                        </div>
+
+                        <!-- 12 宫格命盘 -->
+                        <div class="ziwei-12-grid" id="ziwei-grid">
+                            <!-- 12 宫格动态渲染 -->
+                        </div>
+
+                        <div class="det-bottom-link">
+                            <span>▶ 查看完整结构报告与算法边界</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. 时家奇门 Tab (参考图片3) -->
+                <div class="tab-pane" id="tab-qimen">
+                    <div class="qimen-det-wrapper">
+                        <div class="det-sub-header">DETERMINISTIC · CALCULATED</div>
+                        <h2 class="det-main-title">时家奇门结构盘</h2>
+                        <div class="det-notice-text">程序独立计算九宫、九星、八门与八神；当前不输出吉凶断语。</div>
+
+                        <!-- 奇门局数标签行 -->
+                        <div class="qimen-meta-pills" id="qimen-meta-pills">
+                            <span class="pill-tag">冬至</span>
+                            <span class="pill-tag">阳遁1局 (上元)</span>
+                            <span class="pill-tag">值符 天蓬</span>
+                            <span class="pill-tag">值使 休门</span>
+                        </div>
+
+                        <!-- 九宫奇门盘 Grid -->
+                        <div class="qimen-9-grid" id="qimen-grid">
+                            <!-- 9 宫格动态渲染 -->
+                        </div>
+
+                        <div class="det-bottom-link">
+                            <span>▶ 查看完整结构报告与算法边界</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. 分析报告 Tab (1500字) -->
+                <div class="tab-pane" id="tab-report">
+                    <div class="report-actions">
+                        <button id="copy-report-btn" class="btn-action primary-action">一键复制</button>
+                        <button id="export-pdf-btn" class="btn-action secondary-action">导出 PDF</button>
+                    </div>
+                    <div class="markdown-body" id="report-content">
+                        <p class="placeholder-text">暂无分析报告，请在中间聊天区发起命理推演生成 1500 字深度解读。</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 移动端与折叠后浮动命盘按钮 -->
+        <button class="floating-panel-btn" id="floating-panel-btn" style="display:none;">命盘</button>
+    </div>
+
+    <!-- 新建命主模态弹窗 -->
+    <div class="modal-overlay" id="profile-modal" style="display:none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">新增命主档案</h3>
+                <button class="modal-close" id="modal-x-close">X</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">姓名</label>
+                    <input type="text" id="profile-name" class="input-text" placeholder="输入命主姓名（例：韩立）">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">性别</label>
+                    <div class="pill-group" id="pg-gender">
+                        <button class="pill active" data-val="male">男</button>
+                        <button class="pill" data-val="female">女</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">出生时间</label>
+                    <div class="pill-group" id="pg-calendar">
+                        <button class="pill active" data-val="solar">公历</button>
+                        <button class="pill" data-val="lunar">农历</button>
+                    </div>
+                    <div class="datetime-inputs">
+                        <input type="date" id="profile-date-input" class="input-date" value="1990-06-15">
+                        <input type="time" id="profile-time-input" class="input-time" value="12:00">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">出生地点</label>
+                    <div class="pill-group" id="pg-location">
+                        <button class="pill active" data-val="cn">中国</button>
+                        <button class="pill" data-val="overseas">海外</button>
+                    </div>
+                    <select id="profile-province" class="input-select">
+                        <option value="北京">北京</option>
+                        <option value="上海">上海</option>
+                        <option value="广东">广东</option>
+                        <option value="浙江">浙江</option>
+                        <option value="江苏">江苏</option>
+                        <option value="四川">四川</option>
+                        <option value="山东">山东</option>
+                        <option value="湖北">湖北</option>
+                        <option value="福建">福建</option>
+                    </select>
+                    <input type="text" id="profile-country" class="input-text" placeholder="输入国家名称" style="display:none;">
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn secondary" id="modal-cancel">取消</button>
+                <button class="btn primary" id="modal-confirm">确认创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- App 核心脚本 -->
+    <script type="module" src="app.js"></script>
+</body>
+</html>
