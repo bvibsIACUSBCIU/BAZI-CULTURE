@@ -102,7 +102,7 @@ const server = createServer(async (request, response) => {
         return;
       }
 
-      if (rawPath === "/api/session-history") {
+      if (rawPath === "/api/session-history" || rawPath.startsWith("/api/session-history/")) {
         const fetchRes = await handleSessionHistoryRequest(fetchReq);
         await sendFetchResponse(fetchRes, response);
         return;

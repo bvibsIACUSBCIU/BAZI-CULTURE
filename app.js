@@ -28,6 +28,8 @@ let activeProfile = null;
 let profiles = [];
 let currentReport = '';
 let isThinking = false;
+let editingProfileId = null;
+let savedSessions = [];
 
 // API 端点多端口备用地址
 const BACKEND_HOSTS = ['', 'http://127.0.0.1:4173', 'http://localhost:4173'];
@@ -129,6 +131,7 @@ function initDOM() {
 function init() {
     initDOM();
     setupEventListeners();
+    setupEthereumListeners();
     checkWalletConnection();
     checkResponsive();
     window.addEventListener('resize', checkResponsive);
@@ -165,13 +168,17 @@ function setupEventListeners() {
         }
     });
 
-    // 全局事件委派：点击任意 .wallet-btn 或 #wallet-btn / #wallet-btn-mobile 均触发连接
+    // 全局事件委派：点击任意 .wallet-btn 或 #wallet-btn / #wallet-btn-mobile 触发连接或切换账户
     document.addEventListener('click', (e) => {
         const targetBtn = e.target.closest('#wallet-btn, #wallet-btn-mobile, .wallet-btn');
         if (targetBtn) {
             e.preventDefault();
             e.stopPropagation();
-            connectWallet();
+            if (currentWallet) {
+                switchWalletAccount();
+            } else {
+                connectWallet();
+            }
             return;
         }
 
@@ -203,7 +210,15 @@ function setupEventListeners() {
     });
 
     // 新建命主 Modal
-    DOM.addProfileBtn?.addEventListener('click', () => { if (DOM.profileModal) DOM.profileModal.style.display = 'flex'; });
+    DOM.addProfileBtn?.addEventListener('click', () => {
+        editingProfileId = null;
+        if (DOM.profileName) DOM.profileName.value = '';
+        if (DOM.profileDateInput) DOM.profileDateInput.value = '1990-06-15';
+        if (DOM.profileTimeInput) DOM.profileTimeInput.value = '12:00';
+        const modalTitle = DOM.profileModal?.querySelector('.modal-title') || DOM.profileModal?.querySelector('h3');
+        if (modalTitle) modalTitle.textContent = '新增命主档案';
+        if (DOM.profileModal) DOM.profileModal.style.display = 'flex';
+    });
     DOM.modalCancel?.addEventListener('click', closeModal);
     DOM.modalXClose?.addEventListener('click', closeModal);
     DOM.modalConfirm?.addEventListener('click', handleCreateProfile);
@@ -347,7 +362,7 @@ function checkResponsive() {
     }
 }
 
-// ─── MetaMask 钱包登录与测试钱包自动回退 ─────────────────────────────────────
+// ─── MetaMask 钱包登录与账号切换 / 自动回退 ─────────────────────────────────────
 async function connectWallet() {
     const mockAddr = '0x71c0a82b94f5e89d123456789abcdef012345678';
     
@@ -358,6 +373,7 @@ async function connectWallet() {
     try {
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
         const wallet = accounts[0];
+        if (!wallet) return;
         try {
             const challengeData = await fetchApi(`/api/auth/challenge?wallet=${encodeURIComponent(wallet)}`);
             const challenge = challengeData.challenge || 'bazi_challenge_sign';
@@ -380,12 +396,64 @@ async function connectWallet() {
     }
 }
 
+async function switchWalletAccount() {
+    if (typeof window.ethereum !== 'undefined') {
+        try {
+            await window.ethereum.request({
+                method: 'wallet_requestPermissions',
+                params: [{ eth_accounts: {} }]
+            });
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            if (accounts && accounts[0]) {
+                setWallet(accounts[0]);
+            }
+        } catch (err) {
+            console.warn('Switch account notice:', err);
+        }
+    } else {
+        const testAddrs = [
+            '0x71c0a82b94f5e89d123456789abcdef012345678',
+            '0x93c0d82b94f5e89d123456789abcdef01147852',
+            '0x8888b82b94f5e89d123456789abcdef09999999'
+        ];
+        const idx = testAddrs.indexOf(currentWallet);
+        const nextAddr = testAddrs[(idx + 1) % testAddrs.length];
+        setWallet(nextAddr);
+    }
+}
+
+function disconnectWallet() {
+    currentWallet = null;
+    activeProfile = null;
+    profiles = [];
+    savedSessions = [];
+    localStorage.removeItem('bazi_wallet');
+    document.querySelectorAll('#wallet-btn, #wallet-btn-mobile, .wallet-btn').forEach(btn => {
+        btn.textContent = '连接钱包';
+    });
+    renderProfileList();
+    loadHistory();
+    renderUnconnectedState();
+}
+
+function setupEthereumListeners() {
+    if (typeof window.ethereum !== 'undefined' && window.ethereum.on) {
+        window.ethereum.on('accountsChanged', (accounts) => {
+            if (accounts && accounts.length > 0) {
+                console.log('MetaMask accountsChanged event:', accounts[0]);
+                setWallet(accounts[0]);
+            } else {
+                disconnectWallet();
+            }
+        });
+    }
+}
+
 function setWallet(address) {
     currentWallet = address;
     localStorage.setItem('bazi_wallet', address);
     const short = `${address.substring(0,6)}...${address.substring(38)}`;
     
-    // 更新所有钱包按钮的 UI 标签
     document.querySelectorAll('#wallet-btn, #wallet-btn-mobile, .wallet-btn').forEach(btn => {
         btn.textContent = short;
     });
@@ -399,9 +467,83 @@ function checkWalletConnection() {
     if (saved) {
         setWallet(saved);
     } else {
-        loadProfiles();
+        currentWallet = null;
+        activeProfile = null;
+        profiles = [];
+        savedSessions = [];
+        document.querySelectorAll('#wallet-btn, #wallet-btn-mobile, .wallet-btn').forEach(btn => {
+            btn.textContent = '连接钱包';
+        });
+        renderProfileList();
         loadHistory();
+        renderUnconnectedState();
     }
+}
+
+function renderUnconnectedState() {
+    if (DOM.headerName) DOM.headerName.textContent = '未连接钱包';
+    if (DOM.headerDate) DOM.headerDate.textContent = '点击右上角【连接钱包】签名';
+    if (DOM.headerAvatar) DOM.headerAvatar.textContent = '?';
+    if (DOM.headerDaymaster) DOM.headerDaymaster.textContent = '—';
+
+    if (DOM.bazi4pillarsGrid) {
+        DOM.bazi4pillarsGrid.innerHTML = `
+            <div style="grid-column: 1/-1; padding: 40px 20px; text-align: center; color: #888;">
+                <div style="font-size: 2rem; margin-bottom: 8px;">🔒</div>
+                <div style="font-size: 1rem; color: #eee; font-weight: 600; margin-bottom: 4px;">未连接签名钱包</div>
+                <div style="font-size: 0.85rem;">钱包签名账户是所有数据的唯一凭证，请点击右上角【连接钱包】解锁个人命盘。</div>
+            </div>
+        `;
+    }
+    if (DOM.dmValDisplay) DOM.dmValDisplay.textContent = '—';
+    if (DOM.wuxingBarsGroup) DOM.wuxingBarsGroup.innerHTML = '';
+
+    if (DOM.ziweiGrid) {
+        DOM.ziweiGrid.innerHTML = `
+            <div style="grid-column: 1/-1; padding: 40px 20px; text-align: center; color: #888;">
+                <div style="font-size: 2rem; margin-bottom: 8px;">🔮</div>
+                <div style="font-size: 1rem; color: #eee; font-weight: 600; margin-bottom: 4px;">紫微十二宫星盘未解锁</div>
+                <div style="font-size: 0.85rem;">请先连接钱包并建立命主档案。</div>
+            </div>
+        `;
+    }
+
+    if (DOM.qimenGrid) {
+        DOM.qimenGrid.innerHTML = `
+            <div style="grid-column: 1/-1; padding: 40px 20px; text-align: center; color: #888;">
+                <div style="font-size: 2rem; margin-bottom: 8px;">☯️</div>
+                <div style="font-size: 1rem; color: #eee; font-weight: 600; margin-bottom: 4px;">时家奇门九宫格未解锁</div>
+                <div style="font-size: 0.85rem;">请先连接钱包并建立命主档案。</div>
+            </div>
+        `;
+    }
+
+    if (DOM.reportContent) {
+        DOM.reportContent.innerHTML = `
+            <div style="padding: 40px 20px; text-align: center; color: #888;">
+                <div style="font-size: 1.1rem; color: #eee; margin-bottom: 6px;">全盘运势报告待生成</div>
+                <div>连接钱包选择命主后，点击提问即可获得 20 Agent 深度推演报告。</div>
+            </div>
+        `;
+    }
+}
+
+function renderNoProfilesState() {
+    if (DOM.headerName) DOM.headerName.textContent = '未新建命主';
+    if (DOM.headerDate) DOM.headerDate.textContent = '点击左侧边栏 + 新建命主档案';
+    if (DOM.headerAvatar) DOM.headerAvatar.textContent = '+';
+    if (DOM.headerDaymaster) DOM.headerDaymaster.textContent = '—';
+
+    if (DOM.bazi4pillarsGrid) {
+        DOM.bazi4pillarsGrid.innerHTML = `
+            <div style="grid-column: 1/-1; padding: 40px 20px; text-align: center; color: #888;">
+                <div style="font-size: 1rem; color: #eee; margin-bottom: 4px;">暂无选中的命主档案</div>
+                <div style="font-size: 0.85rem;">请在左侧边栏点击【+】创建您的第一个生辰命主。</div>
+            </div>
+        `;
+    }
+    if (DOM.dmValDisplay) DOM.dmValDisplay.textContent = '—';
+    if (DOM.wuxingBarsGroup) DOM.wuxingBarsGroup.innerHTML = '';
 }
 
 // ─── 命主管理 & 严格日期清洗 ────────────────────────────────────────────────────
@@ -419,29 +561,60 @@ function sanitizeDateStr(rawDate) {
 }
 
 async function loadProfiles() {
+    if (!currentWallet) {
+        profiles = [];
+        activeProfile = null;
+        renderProfileList();
+        renderUnconnectedState();
+        return;
+    }
+
     try {
-        const res = await fetchApi(`/api/profile?wallet=${encodeURIComponent(currentWallet || 'default')}`);
+        const res = await fetchApi(`/api/profile?wallet=${encodeURIComponent(currentWallet)}`);
         profiles = Array.isArray(res.profiles) ? res.profiles : [];
     } catch(_) {
-        const cached = localStorage.getItem(`bazi_profiles_${currentWallet || 'default'}`);
+        const cached = localStorage.getItem(`bazi_profiles_${currentWallet}`);
         profiles = cached ? JSON.parse(cached) : [];
     }
 
     if (profiles.length === 0) {
-        profiles = [
-            { id: 'prof-hanli', name: '韩立', date: '2001-01-01', time: '06:00', gender: 'male', timeKnown: true },
-            { id: 'prof-wangling', name: '王领', date: '1990-06-15', time: '14:30', gender: 'male', timeKnown: true }
-        ];
+        const shortId = currentWallet.slice(-6);
+        const defaultProf = {
+            id: `prof-${shortId}`,
+            name: '主命主',
+            date: '2001-01-01',
+            time: '06:00',
+            gender: 'male',
+            timeKnown: true
+        };
+        profiles = [defaultProf];
+        saveProfilesLocally();
     }
 
     renderProfileList();
     if (profiles.length > 0) {
         setActiveProfile(profiles[0]);
+    } else {
+        activeProfile = null;
+        renderNoProfilesState();
     }
 }
 
 function renderProfileList() {
     if (!DOM.profileList) return;
+
+    if (!currentWallet) {
+        DOM.profileList.innerHTML = '<div class="empty-state" style="padding:12px; color:#888; font-size:12px; text-align:center;">未连接钱包</div>';
+        if (DOM.profileDropdown) DOM.profileDropdown.innerHTML = '<div class="dropdown-item">未连接钱包</div>';
+        return;
+    }
+
+    if (profiles.length === 0) {
+        DOM.profileList.innerHTML = '<div class="empty-state" style="padding:12px; color:#888; font-size:12px; text-align:center;">暂无命主档案 (点击 + 新建)</div>';
+        if (DOM.profileDropdown) DOM.profileDropdown.innerHTML = '<div class="dropdown-item">暂无命主档案</div>';
+        return;
+    }
+
     DOM.profileList.innerHTML = profiles.map(p => {
         const cleanDate = sanitizeDateStr(p.date);
         const isActive = activeProfile?.id === p.id;
@@ -451,6 +624,11 @@ function renderProfileList() {
             <div class="profile-info">
                 <span class="profile-name">${p.name}</span>
                 <span class="profile-date">${cleanDate}</span>
+            </div>
+            <button class="profile-kebab-btn" title="更多操作" data-id="${p.id}">⋮</button>
+            <div class="profile-menu-dropdown" id="profile-menu-${p.id}">
+                <div class="profile-menu-item edit-btn" data-id="${p.id}">✏️ 编辑</div>
+                <div class="profile-menu-item danger delete-btn" data-id="${p.id}">🗑️ 删除</div>
             </div>
         </div>
         `;
@@ -474,11 +652,82 @@ function renderProfileList() {
     }
 
     DOM.profileList.querySelectorAll('.profile-item').forEach(el => {
-        el.addEventListener('click', () => {
+        el.addEventListener('click', (e) => {
+            if (e.target.closest('.profile-kebab-btn') || e.target.closest('.profile-menu-dropdown')) return;
             const found = profiles.find(x => x.id === el.dataset.id);
             if (found) setActiveProfile(found);
         });
     });
+
+    DOM.profileList.querySelectorAll('.profile-kebab-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            const menu = $(`profile-menu-${id}`);
+            document.querySelectorAll('.profile-menu-dropdown').forEach(m => {
+                if (m !== menu) m.classList.remove('show');
+            });
+            if (menu) menu.classList.toggle('show');
+        });
+    });
+
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.profile-menu-dropdown').forEach(m => m.classList.remove('show'));
+    });
+
+    DOM.profileList.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.querySelectorAll('.profile-menu-dropdown').forEach(m => m.classList.remove('show'));
+            const p = profiles.find(x => x.id === btn.dataset.id);
+            if (p) openEditProfileModal(p);
+        });
+    });
+
+    DOM.profileList.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.querySelectorAll('.profile-menu-dropdown').forEach(m => m.classList.remove('show'));
+            handleDeleteProfile(btn.dataset.id);
+        });
+    });
+}
+
+function openEditProfileModal(p) {
+    editingProfileId = p.id;
+    if (DOM.profileName) DOM.profileName.value = p.name || '';
+    if (DOM.profileDateInput) DOM.profileDateInput.value = sanitizeDateStr(p.date);
+    if (DOM.profileTimeInput) DOM.profileTimeInput.value = p.time || '12:00';
+    
+    if (DOM.pgGender) {
+        DOM.pgGender.querySelectorAll('.pill').forEach(pill => {
+            pill.classList.toggle('active', pill.dataset.val === (p.gender || 'male'));
+        });
+    }
+
+    const modalTitle = DOM.profileModal?.querySelector('.modal-title') || DOM.profileModal?.querySelector('h3');
+    if (modalTitle) modalTitle.textContent = `编辑命主【${p.name}】`;
+    if (DOM.profileModal) DOM.profileModal.style.display = 'flex';
+}
+
+function handleDeleteProfile(id) {
+    const p = profiles.find(x => x.id === id);
+    if (!p) return;
+    if (!confirm(`确定要删除命主【${p.name}】吗？`)) return;
+
+    profiles = profiles.filter(x => x.id !== id);
+    saveProfilesLocally();
+
+    if (activeProfile?.id === id) {
+        if (profiles.length > 0) {
+            setActiveProfile(profiles[0]);
+        } else {
+            activeProfile = null;
+            renderProfileList();
+        }
+    } else {
+        renderProfileList();
+    }
 }
 
 function setActiveProfile(profile) {
@@ -506,7 +755,23 @@ async function handleCreateProfile() {
     const time = DOM.profileTimeInput.value || '12:00';
     const gender = getActivePillValue(DOM.pgGender) || 'male';
     const locType = getActivePillValue(DOM.pgLocation) || 'cn';
-    const birthplace = locType === 'cn' ? DOM.profileProvince.value : DOM.profileCountry.value;
+    const birthplace = locType === 'cn' ? DOM.profileProvince?.value : DOM.profileCountry?.value;
+
+    if (editingProfileId) {
+        const p = profiles.find(x => x.id === editingProfileId);
+        if (p) {
+            p.name = name;
+            p.date = cleanDate;
+            p.time = time;
+            p.gender = gender;
+            p.birthplace = birthplace;
+            saveProfilesLocally();
+            closeModal();
+            setActiveProfile(p);
+            editingProfileId = null;
+            return;
+        }
+    }
 
     const newProf = {
         name,
@@ -765,35 +1030,169 @@ async function safeFetchQimenApi(profile) {
     }
 }
 
-// ─── 历史对话加载 ──────────────────────────────────────────────────────────────
+// ─── 历史对话加载 & 收藏管理 ──────────────────────────────────────────────────
 async function loadHistory() {
-    try {
-        const res = await fetchApi(`/api/session-history?wallet=${encodeURIComponent(currentWallet || 'default')}`);
-        const sessions = Array.isArray(res.sessions) ? res.sessions : [];
-        const bookmarks = Array.isArray(res.bookmarks) ? res.bookmarks : [];
-
-        if (DOM.bookmarkList) {
-            DOM.bookmarkList.innerHTML = bookmarks.length === 0
-                ? '<p class="placeholder-text" style="padding:8px;">暂无收藏对话</p>'
-                : bookmarks.map(s => `<div class="chat-item" title="${s.title}">收藏 · ${s.title}</div>`).join('');
-        }
-
-        if (DOM.historyList) {
-            DOM.historyList.innerHTML = sessions.length === 0
-                ? '<p class="placeholder-text" style="padding:8px;">暂无历史对话</p>'
-                : sessions.map(s => `<div class="chat-item" title="${s.title}">对话 · ${s.title}</div>`).join('');
-        }
-    } catch(_) {
-        if (DOM.historyList) DOM.historyList.innerHTML = '<p class="placeholder-text" style="padding:8px;">暂无历史记录</p>';
+    if (!currentWallet) {
+        savedSessions = [];
+        renderHistoryUI();
+        return;
     }
+    try {
+        const res = await fetchApi(`/api/session-history?wallet=${encodeURIComponent(currentWallet)}`);
+        savedSessions = Array.isArray(res.sessions) ? res.sessions : [];
+    } catch(_) {
+        const cached = localStorage.getItem(`bazi_sessions_${currentWallet}`);
+        savedSessions = cached ? JSON.parse(cached) : [];
+    }
+
+    renderHistoryUI();
+}
+
+function renderHistoryUI() {
+    if (!currentWallet) {
+        if (DOM.bookmarkList) DOM.bookmarkList.innerHTML = '<p class="placeholder-text" style="padding:8px; color: #888; font-size: 13px;">请连接钱包查看收藏</p>';
+        if (DOM.historyList) DOM.historyList.innerHTML = '<p class="placeholder-text" style="padding:8px; color: #888; font-size: 13px;">请连接钱包查看历史</p>';
+        return;
+    }
+
+    const bookmarks = savedSessions.filter(s => s.bookmarked);
+
+    if (DOM.bookmarkList) {
+        DOM.bookmarkList.innerHTML = bookmarks.length === 0
+            ? '<p class="placeholder-text" style="padding:8px; color: #888; font-size: 13px;">暂无收藏对话</p>'
+            : bookmarks.map(s => renderSessionItemHtml(s)).join('');
+        bindSessionItemEvents(DOM.bookmarkList);
+    }
+
+    if (DOM.historyList) {
+        DOM.historyList.innerHTML = savedSessions.length === 0
+            ? '<p class="placeholder-text" style="padding:8px; color: #888; font-size: 13px;">暂无历史对话</p>'
+            : savedSessions.map(s => renderSessionItemHtml(s)).join('');
+        bindSessionItemEvents(DOM.historyList);
+    }
+}
+
+function renderSessionItemHtml(s) {
+    const timeStr = s.timestamp ? new Date(s.timestamp).toLocaleDateString() : '';
+    return `
+    <div class="chat-item-wrapper" data-id="${s.id}" title="${s.title}">
+        <div class="chat-item-info">
+            <span class="chat-item-title">${s.title}</span>
+            <span class="chat-item-sub">${s.profileName || '命主'} ${timeStr ? '· ' + timeStr : ''}</span>
+        </div>
+        <button class="chat-item-star ${s.bookmarked ? 'active' : ''}" data-id="${s.id}" title="${s.bookmarked ? '取消收藏' : '收藏'}">
+            ${s.bookmarked ? '★' : '☆'}
+        </button>
+    </div>
+    `;
+}
+
+function bindSessionItemEvents(container) {
+    if (!container) return;
+    
+    container.querySelectorAll('.chat-item-wrapper').forEach(item => {
+        item.addEventListener('click', (e) => {
+            if (e.target.closest('.chat-item-star')) return;
+            const id = item.dataset.id;
+            loadSessionDetail(id);
+        });
+    });
+
+    container.querySelectorAll('.chat-item-star').forEach(starBtn => {
+        starBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = starBtn.dataset.id;
+            toggleSessionBookmark(id);
+        });
+    });
+}
+
+async function toggleSessionBookmark(sessionId) {
+    if (!currentWallet) return;
+    const s = savedSessions.find(x => x.id === sessionId);
+    if (s) {
+        s.bookmarked = !s.bookmarked;
+        localStorage.setItem(`bazi_sessions_${currentWallet}`, JSON.stringify(savedSessions));
+        renderHistoryUI();
+    }
+
+    try {
+        await fetchApi('/api/session-history/bookmark', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wallet: currentWallet, sessionId })
+        });
+    } catch (_) {}
+}
+
+function loadSessionDetail(sessionId) {
+    const s = savedSessions.find(x => x.id === sessionId);
+    if (!s) return;
+
+    if (DOM.waitingState) DOM.waitingState.style.display = 'none';
+    if (DOM.messageList) {
+        DOM.messageList.style.display = 'flex';
+        DOM.messageList.innerHTML = '';
+        
+        appendUserMsg(s.question || s.title);
+        
+        const agentMsgId = `agent-msg-hist-${Date.now()}`;
+        appendAgentMsg(agentMsgId);
+        
+        const agentCardEl = $(agentMsgId);
+        const headerTitle = agentCardEl?.querySelector('.agent-msg-title');
+        const conclusionEl = agentCardEl?.querySelector('.conclusion-card');
+        
+        if (headerTitle) headerTitle.textContent = `历史对话 · 命盘分析记录【${s.profileName || '命主'}】`;
+        if (conclusionEl) {
+            conclusionEl.style.display = 'block';
+            conclusionEl.innerHTML = `<div style="font-size: 14px; line-height: 1.6; color: #eee;">${s.summary || '【运势概况】解析已完成，参阅右侧运势报告。'}</div>`;
+        }
+    }
+    
+    if (s.reportMarkdown && DOM.reportContent) {
+        currentReport = s.reportMarkdown;
+        const parseFn = window.marked?.parse || window.marked || ((str) => str.replace(/\n/g, '<br>'));
+        DOM.reportContent.innerHTML = typeof parseFn === 'function' ? parseFn(s.reportMarkdown) : s.reportMarkdown;
+        switchTab('tab-report');
+    }
+}
+
+async function addSessionToHistory(sessionData) {
+    if (!currentWallet) return;
+    const newSess = {
+        id: `sess-${Date.now()}`,
+        wallet: currentWallet,
+        profileId: activeProfile?.id || 'default',
+        profileName: activeProfile?.name || '命主',
+        title: sessionData.title || (sessionData.question ? `解答: ${sessionData.question.slice(0, 15)}...` : '八字运势解读'),
+        question: sessionData.question || sessionData.title || '',
+        summary: sessionData.summary || '',
+        reportMarkdown: sessionData.reportMarkdown || '',
+        timestamp: new Date().toISOString(),
+        bookmarked: false
+    };
+
+    savedSessions.unshift(newSess);
+    localStorage.setItem(`bazi_sessions_${currentWallet}`, JSON.stringify(savedSessions));
+    renderHistoryUI();
+
+    try {
+        await fetchApi('/api/session-history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wallet: currentWallet, action: 'add', ...newSess })
+        });
+    } catch (_) {}
 }
 
 // ─── 20 Agent 消息发送与推流 ─────────────────────────────────────────────────
 async function sendMessage() {
     if (isThinking) return;
+    if (!currentWallet) return alert('请先点击右上角【连接钱包】签名');
+    if (!activeProfile) return alert('请先在左侧边栏点击【+】创建命主档案');
     const text = DOM.chatInput ? DOM.chatInput.value.trim() : '';
     if (!text) return alert('请输入您想了解的命理问题');
-    if (!activeProfile) return alert('请先选择或新建命主');
 
     isThinking = true;
     if (DOM.chatInput) DOM.chatInput.value = '';
@@ -925,6 +1324,11 @@ async function runClientAgentSimulation(question, mode, stepsDiv, conclusionEl, 
 
     handleSseEvent({ type: 'report', markdown: markdownReport }, stepsDiv, conclusionEl, headerTitle, agentMap);
     handleSseEvent({ type: 'session_end', duration: Date.now() - startTime, creditsUsed: 0 }, stepsDiv, conclusionEl, headerTitle, agentMap);
+    addSessionToHistory({
+        title: `问答: ${question.slice(0, 15)}...`,
+        summary: conclusionText,
+        reportMarkdown: markdownReport
+    });
 }
 
 function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {

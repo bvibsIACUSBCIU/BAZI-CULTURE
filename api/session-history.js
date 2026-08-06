@@ -1,16 +1,4 @@
-const userSessionStore = new Map();
-
-function getSessions(wallet = "default") {
-  const key = wallet.toLowerCase();
-  if (!userSessionStore.has(key)) {
-    const defaults = [
-      { id: "sess-001", profileId: "prof-hanli", profileName: "韩立", title: "八字详批 - 庚午年", topic: "overview", timestamp: "2026-07-30T10:15:00Z", bookmarked: true },
-      { id: "sess-002", profileId: "prof-hanli", profileName: "韩立", title: "事业运势 - 丙午流年", topic: "career", timestamp: "2026-07-31T14:20:00Z", bookmarked: false }
-    ];
-    userSessionStore.set(key, defaults);
-  }
-  return userSessionStore.get(key);
-}
+import { defaultSessionHistoryService } from '../lib/runtime/session-history-service.js';
 
 export async function handleSessionHistoryRequest(req) {
   const method = (req.method || "GET").toUpperCase();
@@ -19,7 +7,7 @@ export async function handleSessionHistoryRequest(req) {
   const wallet = url.searchParams.get("wallet") || "default";
 
   let body = {};
-  if (method === "POST") {
+  if (method === "POST" || method === "DELETE") {
     if (typeof req.json === "function") {
       body = await req.json().catch(() => ({}));
     } else if (req.body) {
@@ -27,11 +15,10 @@ export async function handleSessionHistoryRequest(req) {
     }
   }
 
-  const sessions = getSessions(wallet);
-
   try {
     if (method === "GET") {
-      const bookmarks = sessions.filter(s => s.bookmarked);
+      const sessions = defaultSessionHistoryService.getSessions(wallet);
+      const bookmarks = defaultSessionHistoryService.getBookmarks(wallet);
       return createJsonResponse({
         ok: true,
         success: true,
@@ -44,12 +31,9 @@ export async function handleSessionHistoryRequest(req) {
       const action = body.action || (url.pathname.endsWith("/bookmark") ? "bookmark" : "add");
 
       if (action === "bookmark") {
-        const target = sessions.find(s => s.id === body.sessionId);
-        if (!target) {
-          return createJsonResponse({ ok: false, success: false, error: "SESSION_NOT_FOUND" }, 404);
-        }
-        target.bookmarked = !target.bookmarked;
-        const bookmarks = sessions.filter(s => s.bookmarked);
+        const target = defaultSessionHistoryService.toggleBookmark(wallet, body.sessionId);
+        const sessions = defaultSessionHistoryService.getSessions(wallet);
+        const bookmarks = defaultSessionHistoryService.getBookmarks(wallet);
         return createJsonResponse({
           ok: true,
           success: true,
@@ -60,17 +44,10 @@ export async function handleSessionHistoryRequest(req) {
       }
 
       if (action === "add" || !body.action) {
-        const newSess = {
-          id: `sess-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          profileId: body.profileId || "prof-hanli",
-          profileName: body.profileName || "韩立",
-          title: body.title || "新命理对话",
-          topic: body.topic || "overview",
-          timestamp: new Date().toISOString(),
-          bookmarked: false
-        };
-        sessions.unshift(newSess);
-        const bookmarks = sessions.filter(s => s.bookmarked);
+        const id = defaultSessionHistoryService.addSession(wallet, body);
+        const sessions = defaultSessionHistoryService.getSessions(wallet);
+        const bookmarks = defaultSessionHistoryService.getBookmarks(wallet);
+        const newSess = sessions.find(s => s.id === id);
         return createJsonResponse({
           ok: true,
           success: true,
@@ -79,6 +56,18 @@ export async function handleSessionHistoryRequest(req) {
           bookmarks
         });
       }
+    }
+
+    if (method === "DELETE") {
+      const sessionId = body.sessionId || url.searchParams.get("sessionId");
+      if (sessionId) {
+        const sessions = defaultSessionHistoryService.getSessions(wallet);
+        const idx = sessions.findIndex(s => s.id === sessionId);
+        if (idx !== -1) sessions.splice(idx, 1);
+      }
+      const sessions = defaultSessionHistoryService.getSessions(wallet);
+      const bookmarks = defaultSessionHistoryService.getBookmarks(wallet);
+      return createJsonResponse({ ok: true, success: true, sessions, bookmarks });
     }
 
     return createJsonResponse({ ok: false, success: false, error: "NOT_FOUND" }, 404);

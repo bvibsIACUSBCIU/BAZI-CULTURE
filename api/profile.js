@@ -24,14 +24,14 @@ export async function handleProfileRequest(req) {
         const q = searchQ.trim().toLowerCase();
         profiles = profiles.filter(p => p.name.toLowerCase().includes(q));
       }
-      const activeProfile = defaultProfileService.getActiveProfile(wallet);
+      const activeProfile = defaultProfileService.getActiveProfile(wallet) || null;
 
       return createJsonResponse({
         ok: true,
         success: true,
         profiles,
         activeProfile,
-        activeProfileId: activeProfile.id
+        activeProfileId: activeProfile ? activeProfile.id : null
       });
     }
 

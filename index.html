@@ -3244,15 +3244,10 @@
       const checkinProgressFill = document.getElementById("checkin-progress-fill");
       const web3ProfileBadge = document.getElementById("web3-profile-badge");
 
-      let stateProfiles = [
-        { id: "prof-hanli", name: "韩立", date: "1990-06-15", time: "14:30", gender: "male", timeKnown: true, birthplace: "" }
-      ];
-      let activeProfileId = "prof-hanli";
+      let stateProfiles = [];
+      let activeProfileId = null;
       let stateQuota = { points: 1580, checkinTaskProgress: 3, totalCheckinDays: 5, checkedInToday: false };
-      let stateSessions = [
-        { id: "sess-001", profileId: "prof-hanli", profileName: "韩立", title: "八字详批 - 庚午年", topic: "overview", timestamp: "2026-07-30T10:15:00Z", bookmarked: true },
-        { id: "sess-002", profileId: "prof-hanli", profileName: "韩立", title: "事业运势 - 丙午流年", topic: "career", timestamp: "2026-07-31T14:20:00Z", bookmarked: false }
-      ];
+      let stateSessions = [];
 
       async function initR1State() {
         try {

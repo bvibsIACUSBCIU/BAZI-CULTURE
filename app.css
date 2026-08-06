@@ -1597,3 +1597,105 @@ body {
     margin-top: 2px;
 }
 
+/* Profile Kebab (3-dots) Menu & Context Dropdown */
+.profile-item {
+    position: relative;
+}
+.profile-kebab-btn {
+    margin-left: auto;
+    background: transparent;
+    border: none;
+    color: var(--text-muted, #888);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: color 0.15s, background 0.15s;
+    line-height: 1;
+}
+.profile-kebab-btn:hover {
+    color: var(--text-gold, #e2b714);
+    background: rgba(255, 255, 255, 0.1);
+}
+.profile-menu-dropdown {
+    position: absolute;
+    right: 8px;
+    top: 34px;
+    background: #1e2026;
+    border: 1px solid rgba(226, 183, 20, 0.3);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    z-index: 999;
+    display: none;
+    flex-direction: column;
+    min-width: 90px;
+    overflow: hidden;
+}
+.profile-menu-dropdown.show {
+    display: flex;
+}
+.profile-menu-item {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    color: var(--text-primary, #ddd);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.profile-menu-item:hover {
+    background: rgba(226, 183, 20, 0.15);
+    color: #e2b714;
+}
+.profile-menu-item.danger:hover {
+    background: rgba(244, 67, 54, 0.15);
+    color: #f44336;
+}
+
+/* Chat list items */
+.chat-item-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-radius: var(--radius-md, 6px);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-bottom: 4px;
+}
+.chat-item-wrapper:hover {
+    background: var(--bg-card-hover, rgba(255, 255, 255, 0.08));
+    border-color: rgba(226, 183, 20, 0.2);
+}
+.chat-item-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex: 1;
+    margin-right: 8px;
+}
+.chat-item-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-primary, #eee);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.chat-item-sub {
+    font-size: 0.72rem;
+    color: var(--text-muted, #888);
+}
+.chat-item-star {
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 2px 4px;
+    transition: color 0.15s;
+}
+.chat-item-star.active, .chat-item-star:hover {
+    color: #ffca28;
+}
+

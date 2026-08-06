@@ -2,14 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { handleProfileRequest } from '../api/profile.js';
 
-test('Profile API - GET default profiles', async () => {
-  const req = new Request('http://localhost/api/profile?wallet=0xTestProfile', { method: 'GET' });
+test('Profile API - GET profiles for new wallet returns empty list', async () => {
+  const req = new Request('http://localhost/api/profile?wallet=0xTestProfileNew', { method: 'GET' });
   const res = await handleProfileRequest(req);
   const json = await res.json();
   assert.equal(json.ok, true);
   assert.ok(Array.isArray(json.profiles));
-  assert.ok(json.profiles.length > 0);
-  assert.equal(json.profiles[0].name, '韩立');
+  assert.equal(json.profiles.length, 0);
+  assert.equal(json.activeProfile, null);
 });
 
 test('Profile API - POST add new profile', async () => {
