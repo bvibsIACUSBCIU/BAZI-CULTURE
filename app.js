@@ -5,6 +5,7 @@ const SIX_STAGE_LABELS = [
 
 // ─── 全局状态 ─────────────────────────────────────────────────────────────────
 let currentWallet = null;
+let currentAccount = null;
 let selectedAuthWallet = null;
 let activeProfile = null;
 let profiles = [];
@@ -14,7 +15,7 @@ let editingProfileId = null;
 let savedSessions = [];
 
 // API 端点多端口备用地址
-const BACKEND_HOSTS = ['', 'http://127.0.0.1:4173', 'http://localhost:4173'];
+const BACKEND_HOSTS = [''];
 
 // ─── API 请求包装助手 ──────────────────────────────────────────────────────────
 async function fetchApi(path, options = {}) {
@@ -22,13 +23,17 @@ async function fetchApi(path, options = {}) {
     for (const host of BACKEND_HOSTS) {
         try {
             const url = `${host}${path}`;
-            const res = await fetch(url, options);
+            const res = await fetch(url, { credentials: 'same-origin', ...options });
             if (res.ok) {
                 const contentType = res.headers.get("content-type") || "";
                 if (contentType.includes("application/json")) {
                     return await res.json();
                 }
                 return res;
+            }
+            if (res.status === 401) {
+                await clearAuthenticatedState();
+                throw new Error(`HTTP 401: authentication required`);
             }
             if (res.status === 404) {
                 lastError = new Error(`404 at ${url}`);
@@ -435,7 +440,7 @@ async function submitWalletAuth(operation) {
             body: JSON.stringify({ wallet, username, challengeId: challengeData.challengeId, signature })
         });
         if (!authResult?.account?.walletAddress) throw new Error('钱包签名验证失败');
-        setWallet(wallet);
+        await setWallet(authResult.account.walletAddress);
         closeAuthModal();
     } catch (err) {
         console.warn('Wallet auth cancelled or failed:', err.message);
@@ -458,7 +463,8 @@ async function switchWalletAccount() {
     }
 }
 
-function disconnectWallet() {
+async function clearAuthenticatedState() {
+    currentAccount = null;
     currentWallet = null;
     activeProfile = null;
     profiles = [];
@@ -469,49 +475,54 @@ function disconnectWallet() {
         btn.textContent = '连接钱包';
     });
     renderProfileList();
-    loadHistory();
+    renderHistoryUI();
     renderUnconnectedState();
+}
+
+async function disconnectWallet() {
+    try {
+        await fetchApi('/api/auth/logout', { method: 'POST' });
+    } catch (_) {}
+    await clearAuthenticatedState();
 }
 
 function setupEthereumListeners() {
     if (typeof window.ethereum !== 'undefined' && window.ethereum.on) {
         window.ethereum.on('accountsChanged', (accounts) => {
             console.log('MetaMask account changed; a new explicit login or registration is required');
-            disconnectWallet();
+            clearAuthenticatedState();
             if (DOM.authWalletAddress) DOM.authWalletAddress.textContent = accounts?.[0] ? '钱包已切换，请重新选择' : '钱包已断开';
             showAuthMessage('MetaMask 账户已变更。为保护账户，请重新选择钱包并手动注册或登录。');
         });
     }
 }
 
-function setWallet(address) {
-    currentWallet = address;
-    localStorage.setItem('bazi_wallet', address);
-    const short = `${address.substring(0,6)}...${address.substring(38)}`;
+async function bootstrapAuthenticatedAccount() {
+    const result = await fetchApi('/api/auth/me');
+    currentAccount = result.account;
+    currentWallet = currentAccount.walletAddress;
+    const short = `${currentWallet.substring(0,6)}...${currentWallet.substring(38)}`;
     
     document.querySelectorAll('#wallet-btn, #wallet-btn-mobile, .wallet-btn').forEach(btn => {
         btn.textContent = short;
     });
     
-    loadProfiles();
-    loadHistory();
+    await Promise.all([loadProfiles(), loadHistory()]);
+}
+
+async function setWallet(address) {
+    currentWallet = address;
+    await bootstrapAuthenticatedAccount();
 }
 
 function checkWalletConnection() {
     if (typeof window.ethereum === 'undefined') {
-        currentWallet = null;
-        activeProfile = null;
-        profiles = [];
-        savedSessions = [];
-        document.querySelectorAll('#wallet-btn, #wallet-btn-mobile, .wallet-btn').forEach(btn => {
-            btn.textContent = '连接钱包';
-        });
-        renderProfileList();
-        loadHistory();
-        renderUnconnectedState();
+        clearAuthenticatedState();
         return;
     }
-    window.ethereum.request({ method: 'eth_accounts' }).then(setWalletCandidate).catch(() => {});
+    bootstrapAuthenticatedAccount().catch(() => {
+        window.ethereum.request({ method: 'eth_accounts' }).then(setWalletCandidate).catch(() => {});
+    });
 }
 
 function setWalletCandidate(accounts) {
@@ -613,16 +624,16 @@ async function loadProfiles() {
     }
 
     try {
-        const res = await fetchApi(`/api/profile?wallet=${encodeURIComponent(currentWallet)}`);
+        const res = await fetchApi('/api/profile');
         profiles = Array.isArray(res.profiles) ? res.profiles : [];
     } catch(_) {
-        const cached = localStorage.getItem(`bazi_profiles_${currentWallet}`);
-        profiles = cached ? JSON.parse(cached) : [];
+        profiles = [];
     }
 
     renderProfileList();
     if (profiles.length > 0) {
-        setActiveProfile(profiles[0]);
+        const activeId = currentAccount?.preferences?.activeProfileId;
+        setActiveProfile(profiles.find((profile) => profile.id === activeId) || profiles[0]);
     } else {
         activeProfile = null;
         renderNoProfilesState();
@@ -745,7 +756,7 @@ async function handleDeleteProfile(id) {
     if (!confirm(`确定要删除命主【${p.name}】吗？`)) return;
 
     try {
-        const result = await fetchApi(`/api/profile?wallet=${encodeURIComponent(currentWallet || 'default')}&profileId=${encodeURIComponent(id)}`, { method: 'DELETE' });
+        const result = await fetchApi(`/api/profile?profileId=${encodeURIComponent(id)}`, { method: 'DELETE' });
         profiles = Array.isArray(result.profiles) ? result.profiles : profiles.filter(x => x.id !== id);
     } catch (error) {
         console.error('Profile deletion failed:', error);
@@ -770,6 +781,10 @@ function setActiveProfile(profile) {
     const cleanDate = sanitizeDateStr(profile.date);
     profile.date = cleanDate;
 
+    if (currentAccount?.preferences?.activeProfileId !== profile.id) {
+        persistActiveProfile(profile.id);
+    }
+
     renderProfileList();
 
     // 更新 Header
@@ -779,6 +794,22 @@ function setActiveProfile(profile) {
 
     // 核心：选中命主后，立即进行全套命盘计算与渲染！
     computeAndRenderAllCharts(profile);
+}
+
+async function persistActiveProfile(profileId) {
+    try {
+        const preferences = await fetchApi('/api/preferences', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                activeProfileId: profileId,
+                settings: currentAccount?.preferences?.settings || {}
+            })
+        });
+        if (currentAccount) currentAccount.preferences = preferences.preferences;
+    } catch (error) {
+        console.warn('Preference synchronization failed:', error.message);
+    }
 }
 
 async function handleCreateProfile() {
@@ -821,13 +852,12 @@ async function handleCreateProfile() {
         const res = await fetchApi('/api/profile', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ wallet: currentWallet || 'default', action: 'add', ...newProf })
+            body: JSON.stringify({ action: 'add', ...newProf })
         });
         const created = res.profile || res;
         profiles.push(created);
-    } catch(_) {
-        const localProf = { id: `prof-${Date.now()}`, ...newProf };
-        profiles.push(localProf);
+    } catch(error) {
+        return alert(`保存命主失败：${error.message || '请稍后重试。'}`);
     }
 
     saveProfilesLocally();
@@ -836,7 +866,7 @@ async function handleCreateProfile() {
 }
 
 function saveProfilesLocally() {
-    localStorage.setItem(`bazi_profiles_${currentWallet || 'default'}`, JSON.stringify(profiles));
+    // Account data is authoritative in D1; this function remains for existing callers.
 }
 
 // ─── 三大经典命盘渲染 (基础四柱, 紫微十二宫, 时家奇门) ───────────────────────────
@@ -1080,11 +1110,10 @@ async function loadHistory() {
         return;
     }
     try {
-        const res = await fetchApi(`/api/session-history?wallet=${encodeURIComponent(currentWallet)}`);
+        const res = await fetchApi('/api/session-history');
         savedSessions = Array.isArray(res.sessions) ? res.sessions : [];
     } catch(_) {
-        const cached = localStorage.getItem(`bazi_sessions_${currentWallet}`);
-        savedSessions = cached ? JSON.parse(cached) : [];
+        savedSessions = [];
     }
 
     renderHistoryUI();
@@ -1154,7 +1183,6 @@ async function toggleSessionBookmark(sessionId) {
     const s = savedSessions.find(x => x.id === sessionId);
     if (s) {
         s.bookmarked = !s.bookmarked;
-        localStorage.setItem(`bazi_sessions_${currentWallet}`, JSON.stringify(savedSessions));
         renderHistoryUI();
     }
 
@@ -1162,7 +1190,7 @@ async function toggleSessionBookmark(sessionId) {
         await fetchApi('/api/session-history/bookmark', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ wallet: currentWallet, sessionId })
+            body: JSON.stringify({ sessionId })
         });
     } catch (_) {}
 }
@@ -1226,14 +1254,13 @@ async function addSessionToHistory(sessionData) {
     };
 
     savedSessions.unshift(newSess);
-    localStorage.setItem(`bazi_sessions_${currentWallet}`, JSON.stringify(savedSessions));
     renderHistoryUI();
 
     try {
         await fetchApi('/api/session-history', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ wallet: currentWallet, action: 'add', ...newSess })
+            body: JSON.stringify({ action: 'add', ...newSess })
         });
     } catch (_) {}
 }
@@ -1272,12 +1299,12 @@ async function sendMessage() {
         const response = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
             body: JSON.stringify({
-                wallet: currentWallet || 'default',
                 profileId: activeProfile.id,
-                profile: activeProfile,
                 question: text,
                 mode,
+                requestId: crypto.randomUUID(),
                 previousReport: currentReport || null
             })
         });
