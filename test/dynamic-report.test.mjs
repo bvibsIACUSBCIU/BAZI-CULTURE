@@ -31,7 +31,7 @@ const careerContext = {
   topics: [{
     topic: "事业与行业专题",
     groups: [{
-      conclusion: "事业专题仅依据丙子、丁卯、丙午、甲午与已计算十神展开。",
+      conclusion: "UNTRUSTED_GROUP_PROSE_事业专题仅依据丙子、丁卯、丙午、甲午与已计算十神展开。",
       details: ["年柱丙子", "透干十神含比肩与劫财"]
     }]
   }]
@@ -42,11 +42,15 @@ const wealthContext = {
   topics: [{
     topic: "财富专题",
     groups: [{
-      conclusion: "财富专题仅依据壬申、癸亥、壬辰、辛丑与已计算十神展开。",
+      conclusion: "UNTRUSTED_GROUP_PROSE_财富专题仅依据壬申、癸亥、壬辰、辛丑与已计算十神展开。",
       details: ["年柱壬申", "透干十神含正印"]
     }]
   }]
 };
+
+function countChineseCharacters(value) {
+  return (String(value || "").match(/[\p{Script=Han}]/gu) || []).length;
+}
 
 test("动态报告随四柱与专题变化且不含遗留静态模板", async () => {
   const career = buildDynamicUserReport(fireChart, careerContext);
@@ -60,8 +64,14 @@ test("动态报告随四柱与专题变化且不含遗留静态模板", async ()
   assert.match(career.corePortrait, /比肩/);
   assert.match(career.corePortrait, /癸·正官/);
   assert.match(career.corePortrait, /丙辛合/);
-  assert.match(career.career, /事业专题仅依据丙子/);
-  assert.match(wealth.wealth, /财富专题仅依据壬申/);
+  assert.match(career.career, /我是否应转向产品管理/u);
+  assert.match(wealth.wealth, /今年如何安排现金流/u);
+  assert.doesNotMatch(JSON.stringify(career), /UNTRUSTED_GROUP_PROSE/u);
+  assert.doesNotMatch(JSON.stringify(wealth), /UNTRUSTED_GROUP_PROSE/u);
+  assert.ok(countChineseCharacters(Object.values(career).join("")) >= 1500);
+  assert.ok(countChineseCharacters(Object.values(wealth).join("")) >= 1500);
+  assert.doesNotMatch(JSON.stringify(career), /本题未选择/u);
+  assert.doesNotMatch(JSON.stringify(wealth), /本题未选择/u);
   assert.doesNotMatch(JSON.stringify(career), /厚积薄发|战略巩固期/);
   assert.doesNotMatch(source, /厚积薄发|战略巩固期/);
 });

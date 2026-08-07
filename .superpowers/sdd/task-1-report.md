@@ -130,3 +130,96 @@ tests 4; pass 4; fail 0
 - `npm test`：111/111 通过。
 - `node --env-file=.env scripts/test-simulation.mjs`：状态 0；四柱 `丙子、丙申、丁亥、乙巳`，日主 `丁火`，六阶段流程和动态报告校验通过。
 - `git diff --check`：通过。
+
+---
+
+## Final reviewer critical/important fixes（严格证据来源、逐段引用与 1500 中文字符）
+
+### 根因分析
+
+1. `buildReportEvidencePayload` 对八字使用 `freezePayload(chart)`，只冻结、不清洗；任意顶层字段，以及 `dayMaster`、`tenGods`、`relations` 深层字段都会原样进入 `bazi` 与对应 facts，并继续进入 planner/group/writer prompt。
+2. 旧校验把 conclusion 与全部 details 合并后，用所有引用事实的值建立全局术语集合。这样八字十神里的同名 `七杀` 与紫微 `命宫` 可以被拼成“七杀坐命宫”，而不是按本段、本系统、本事实分别授权。
+3. 旧年度判断按短语命中，且只要同一分句包含问题词“吗”就整体跳过；`针对“2026年收入增长吗？”，2026年收入增长。` 因此可能把问题原文中的问号当成回答的豁免。
+4. final writer prompt 接收 `safeTopics` 中的 `groupTitle`、conclusion 与 details；标题没有校验，组 prose 即使带聚合引用也可能污染最终报告。旧 writer 又直接信任一整段 Markdown，只检查某个引用是否在任意位置出现，无法保证每个材料段落有自己的来源。
+5. 旧质量门槛是 `markdown.length < 900`，不是 1500 个中文字符；本地 fallback 与 `userReport` 六段也没有强制 1500 中文字符，因此短报告仍可通过。
+
+### TDD RED 证据
+
+先扩充 `test/report-evidence-payload.test.mjs` 与 `test/dynamic-report.test.mjs`，没有修改生产实现时运行：
+
+```text
+$ node --test test/report-evidence-payload.test.mjs test/dynamic-report.test.mjs
+tests 14; pass 7; fail 7
+
+✖ 动态报告随四柱与专题变化且不含遗留静态模板
+  userReport 中文字符不足 1500
+✖ 八字证据递归 allowlist 阻断顶层与日主十神关系注入进入三类 prompt
+  evidence 仍包含 TOP_BAZI_INJECTION / DAYMASTER_INJECTION / TENGODS_INJECTION / RELATIONS_INJECTION
+✖ 年度问题原文可保留但同段回答中的无依据收入增长断言必须拒绝
+  “针对问题引用 + 2026年收入增长”被判定 valid=true
+✖ 最终报告 writer 只请求载荷内事实并接收有效证据引用输出
+  evidence-selection-v1 尚未实现，fallback 中文字符不足 1500
+✖ 最终 writer prompt 不接收 planner/group 标题或分析 prose，只接收其选中的事实 id
+  prompt 仍含 UNVALIDATED_GROUP_TITLE / UNVALIDATED_GROUP_PROSE
+✖ 最终报告 writer 在缺少证据引用或输出越权断言时使用动态证据降级
+  fallback 中文字符不足 1500
+✖ 最终报告拒绝带聚合引用的无来源段落与立刻转行结论并动态降级
+  “天生适合金融行业，应该立刻转行”被直接接受
+```
+
+同名术语用例随后收紧为：八字 facts 中有十神 `七杀`，紫微 facts 中只有 `命宫` 与 `紫微`、没有紫微星曜 `七杀`，输出同时引用 `bazi.tenGods` 与 `ziwei.palaces`。该组合用于验证“两个分别存在的事实不能跨系统拼成一个未经计算的落宫断言”。
+
+继续追查 `userReport` 的旁路后，又先把 group conclusion 改成 `UNTRUSTED_GROUP_PROSE_...` 并要求六段均不得出现该标记：
+
+```text
+$ node --test test/dynamic-report.test.mjs
+tests 1; pass 0; fail 1
+✖ 动态报告随四柱与专题变化且不含遗留静态模板
+  userReport 仍原样包含 UNTRUSTED_GROUP_PROSE
+```
+
+### GREEN 实现
+
+- 新增八字递归 allowlist：只保留引擎实际字段；`input`、四柱、日主、五行计数、十神 details/stems/branches、藏干、干支关系和 calculationPolicy 都逐层挑选允许键，再深度冻结。任意顶层和嵌套扩展键不会进入 payload、facts 或三类 prompt。
+- 每条 fact 新增稳定 `type`，planner/group/writer prompt 都只发送 `source: calculated` 的 `{ id, system, type, label, value }`。
+- `validateGroupAnalysisAgainstChart` 改为 claim-level：conclusion 和每条 detail 分别要求自己的 fact refs；每段只使用自己引用的 facts 做系统校验。
+- 紫微星曜、宫位、四化只允许由本段引用的紫微事实授权；八字 `七杀` 只可在“八字/十神/藏干/透干”语境下由 `bazi.tenGods` 支持，不能授权“七杀坐命宫”。
+- 年度校验先移除被引号包围的问句，只评估实际回答；annual unavailable 时，任意肯定性的年份/阶段谓词（包括收入增长、升降、改善等）都被拒绝，否定性“未计算/不能确认”仍允许。
+- final writer 不再接收 profile、planner/group 标题或组 prose。组结果只用于选择存在于 fact index 的 fact IDs；writer prompt 只含问题、可用范围及经过选择的已计算事实。
+- writer 改为正向结构 `evidence-selection-v1`：LLM 只能为“直接回答/本题依据/如何理解/行动建议/下一步”选择 fact refs 与固定 block kind，不能输出自由文本 Markdown。服务端根据当前问题、专题、事实类型和值动态生成 Markdown，每个材料段落都追加自己的 `[fact.id]`。
+- 旧自由文本 writer 输出，即使带聚合引用，仍会因 schema 不符被拒绝；因此“天生适合金融行业/应该立刻转行”不会进入最终报告。
+- accepted LLM selection 与 fallback 共用同一个动态渲染器，按当前事实、问题、专题生成并以中文字符计数扩展到至少 1550；facts 会按八字核心事实及紫微/奇门结构摘要压缩到最多 12 项，避免把完整原始 JSON 堆成冗长报告。
+- `buildDynamicUserReport` 的六段均绑定实际四柱、日主、五行、十神、关系、问题与专题；总计强制至少 1550 个中文字符，并移除“本题未选择……”固定填充句。
+- `buildDynamicUserReport` 同样不再拼接 raw group conclusion/details；专题只接受固定专题 allowlist/alias，否则按用户问题重新路由。对应回归从 1/1 RED 转为 1/1 GREEN。
+- `api/ai-report.js` 的前端 section provenance 改为真实 `g.evidenceRefs`，移除伪造的 `fact_calculated` 和“需结合大限流年”的固定越界提示。
+- simulation release gate 新增两项硬校验：六段 `userReport` 至少 1500 中文字符且无固定未选择文案；Markdown 至少 1500 中文字符并完整包含五个证据章节。
+
+### GREEN 与最终验证证据
+
+```text
+$ node --test test/report-evidence-payload.test.mjs test/dynamic-report.test.mjs
+tests 14; pass 14; fail 0
+
+$ npm test
+tests 120; pass 120; fail 0
+
+$ node --env-file=.env scripts/test-simulation.mjs
+四柱: 年:丙子 月:丙申 日:丁亥 时:乙巳
+日主: 丁·火
+动态报告校验: 六段文本已绑定本次四柱排盘事实，共 1680 个中文字符
+Markdown 报告校验: 逐段证据报告共 2043 个中文字符
+exit 0
+
+$ node --check lib/agent/ai-service.js
+$ node --check lib/agent/multi-agent-pipeline.js
+$ node --check scripts/test-simulation.mjs
+均为 exit 0
+
+$ git diff --check
+exit 0
+```
+
+### 已知边界
+
+- simulation 使用 `SIMULATION_MOCK_AI` 主动触发 provider unavailable，日志中的 fallback stack 是脚本设计的离线路径；最终状态为 0，并实际验证了动态 fallback 的 1500 中文字符和逐段证据章节。
+- 本次没有改动排盘计算、账户、钱包、历史或前端交互；范围仅限 report evidence / provenance / report quality。

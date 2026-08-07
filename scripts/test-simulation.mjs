@@ -137,7 +137,16 @@ async function runSimulation() {
     if (reportSections.length !== 6 || reportSections.some((section) => typeof section !== "string") || !reportSections.some((section) => pillars.some((pillar) => section.includes(pillar)))) {
       throw new Error("动态通俗解盘未输出六个由实际四柱绑定的文本段落");
     }
-    console.log("动态报告校验: 六段文本已绑定本次四柱排盘事实");
+    const reportChineseCharacters = (reportSections.join("").match(/[\p{Script=Han}]/gu) || []).length;
+    if (reportChineseCharacters < 1500 || reportSections.some((section) => section.includes("本题未选择"))) {
+      throw new Error(`动态通俗解盘质量不足：中文字符 ${reportChineseCharacters}，或包含固定未选择专题文本`);
+    }
+    const markdownChineseCharacters = ((ai.reportMarkdown || "").match(/[\p{Script=Han}]/gu) || []).length;
+    if (markdownChineseCharacters < 1500 || !/## 直接回答[\s\S]*## 本题依据[\s\S]*## 如何理解[\s\S]*## 行动建议[\s\S]*## 下一步/u.test(ai.reportMarkdown || "")) {
+      throw new Error(`Markdown 报告质量不足：中文字符 ${markdownChineseCharacters}，或缺少证据链接章节`);
+    }
+    console.log(`动态报告校验: 六段文本已绑定本次四柱排盘事实，共 ${reportChineseCharacters} 个中文字符`);
+    console.log(`Markdown 报告校验: 逐段证据报告共 ${markdownChineseCharacters} 个中文字符`);
     console.log("==================================================");
   } else {
     console.error("测试失败:", result);

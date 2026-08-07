@@ -124,10 +124,10 @@ export function createAiReportHandler(options = {}) {
             title: g.group_title,
             body: g.conclusion,
             basis: "calculated",
-            sourceRefs: [],
-            factRefs: ["fact_calculated"],
+            sourceRefs: g.evidenceRefs || [],
+            factRefs: g.evidenceRefs || [],
             supportingFacts: g.details || [],
-            counterpoints: ["需结合大限与流年动态综合判断。"]
+            counterpoints: ["当前未计算的年度、阶段与事件保持未知。"]
           }))),
           reflectionQuestions: pipelineResult.recommendations || [],
           limitations: "由 deepseek-v4-flash 基于 100% 确定性排盘演算与数据强绑定校验生成。",
