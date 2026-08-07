@@ -1,6 +1,12 @@
 import { defaultSessionHistoryService } from '../lib/runtime/session-history-service.js';
+import { authRequiredResponse, requireAuth } from '../lib/http/auth-context.js';
 
-export async function handleSessionHistoryRequest(req) {
+export async function handleSessionHistoryRequest(req, { env } = {}) {
+  if (env?.DB && env?.AUTH_KV) return handleCloudflareSessionHistoryRequest(req, env);
+  return handleLegacySessionHistoryRequest(req);
+}
+
+async function handleLegacySessionHistoryRequest(req) {
   const method = (req.method || "GET").toUpperCase();
   const rawUrl = typeof req.url === "string" ? req.url : "http://localhost/api/session-history";
   const url = new URL(rawUrl, "http://localhost");
@@ -74,6 +80,58 @@ export async function handleSessionHistoryRequest(req) {
   } catch (err) {
     return createJsonResponse({ ok: false, success: false, error: err.message }, 500);
   }
+}
+
+async function handleCloudflareSessionHistoryRequest(req, env) {
+  const auth = await requireAuth(req, env);
+  if (!auth) return authRequiredResponse();
+  const method = (req.method || 'GET').toUpperCase();
+  const url = new URL(req.url || 'http://localhost/api/session-history', 'http://localhost');
+  const body = method === 'POST' || method === 'DELETE' ? await readJson(req) : {};
+  try {
+    if (method === 'GET') return cloudSessionList(auth);
+    if (method === 'POST') {
+      const action = body.action || (url.pathname.endsWith('/bookmark') ? 'bookmark' : 'add');
+      if (action === 'bookmark') {
+        const session = await auth.repositories.conversations.toggleBookmark(auth.userId, body.sessionId);
+        if (!session) return createJsonResponse({ ok: false, success: false, error: 'SESSION_NOT_FOUND' }, 404);
+        const response = await cloudSessionList(auth);
+        const payload = await response.json();
+        return createJsonResponse({ ...payload, session });
+      }
+      if (action === 'add') {
+        const session = await auth.repositories.conversations.create(auth.userId, body);
+        const response = await cloudSessionList(auth);
+        const payload = await response.json();
+        return createJsonResponse({ ...payload, session });
+      }
+    }
+    if (method === 'DELETE') {
+      const sessionId = body.sessionId || url.searchParams.get('sessionId');
+      if (!sessionId) return createJsonResponse({ ok: false, success: false, error: 'MISSING_SESSION_ID' }, 400);
+      if (!await auth.repositories.conversations.remove(auth.userId, sessionId)) {
+        return createJsonResponse({ ok: false, success: false, error: 'SESSION_NOT_FOUND' }, 404);
+      }
+      return cloudSessionList(auth);
+    }
+    return createJsonResponse({ ok: false, success: false, error: 'NOT_FOUND' }, 404);
+  } catch (error) {
+    return createJsonResponse({ ok: false, success: false, error: error.code || 'SESSION_HISTORY_ERROR' }, 400);
+  }
+}
+
+async function cloudSessionList(auth) {
+  const sessions = await auth.repositories.conversations.list(auth.userId);
+  return createJsonResponse({
+    ok: true,
+    success: true,
+    sessions,
+    bookmarks: sessions.filter((session) => session.bookmarked),
+  });
+}
+
+async function readJson(req) {
+  return typeof req.json === 'function' ? req.json().catch(() => ({})) : (req.body || {});
 }
 
 function createJsonResponse(data, status = 200) {
