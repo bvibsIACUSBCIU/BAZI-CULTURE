@@ -490,7 +490,7 @@ function setupEthereumListeners() {
     if (typeof window.ethereum !== 'undefined' && window.ethereum.on) {
         window.ethereum.on('accountsChanged', (accounts) => {
             console.log('MetaMask account changed; a new explicit login or registration is required');
-            clearAuthenticatedState();
+            disconnectWallet();
             if (DOM.authWalletAddress) DOM.authWalletAddress.textContent = accounts?.[0] ? '钱包已切换，请重新选择' : '钱包已断开';
             showAuthMessage('MetaMask 账户已变更。为保护账户，请重新选择钱包并手动注册或登录。');
         });
