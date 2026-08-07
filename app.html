@@ -374,6 +374,36 @@
         </div>
     </div>
 
+    <!-- 钱包注册 / 登录模态弹窗：签名仅由用户明确操作触发 -->
+    <div class="modal-overlay" id="auth-modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+        <div class="modal auth-modal-card">
+            <div class="modal-header">
+                <h3 class="modal-title" id="auth-title">钱包注册 / 登录</h3>
+                <button class="modal-close" id="auth-close" type="button" aria-label="关闭">X</button>
+            </div>
+            <div class="modal-body">
+                <p class="auth-description">注册：输入新用户名，选择钱包并签名。登录：输入已登记的用户名和对应钱包，再签名确认。</p>
+                <div class="form-group">
+                    <label class="form-label" for="auth-username">用户名</label>
+                    <input type="text" id="auth-username" class="input-text" maxlength="40" autocomplete="username" placeholder="输入已登记或要注册的用户名">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">当前选择的钱包</label>
+                    <div class="auth-wallet-row">
+                        <span id="auth-wallet-address" class="auth-wallet-address">尚未选择钱包</span>
+                        <button class="btn secondary" id="auth-choose-wallet-btn" type="button">选择钱包</button>
+                    </div>
+                </div>
+                <p id="auth-message" class="auth-message" aria-live="polite"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn secondary" id="auth-cancel" type="button">取消</button>
+                <button class="btn secondary" id="auth-login-btn" type="button">登录并签名</button>
+                <button class="btn primary" id="auth-register-btn" type="button">注册并签名</button>
+            </div>
+        </div>
+    </div>
+
     <!-- App 核心脚本 -->
     <script type="module" src="app.js"></script>
 </body>

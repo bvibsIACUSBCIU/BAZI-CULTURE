@@ -5,6 +5,7 @@ const SIX_STAGE_LABELS = [
 
 // ─── 全局状态 ─────────────────────────────────────────────────────────────────
 let currentWallet = null;
+let selectedAuthWallet = null;
 let activeProfile = null;
 let profiles = [];
 let currentReport = '';
@@ -79,6 +80,17 @@ function initDOM() {
     DOM.pgLocation             = $('pg-location');
     DOM.profileProvince        = $('profile-province');
     DOM.profileCountry         = $('profile-country');
+
+    // Wallet auth
+    DOM.authModal              = $('auth-modal');
+    DOM.authClose              = $('auth-close');
+    DOM.authCancel             = $('auth-cancel');
+    DOM.authUsername           = $('auth-username');
+    DOM.authChooseWalletBtn    = $('auth-choose-wallet-btn');
+    DOM.authWalletAddress      = $('auth-wallet-address');
+    DOM.authRegisterBtn        = $('auth-register-btn');
+    DOM.authLoginBtn           = $('auth-login-btn');
+    DOM.authMessage            = $('auth-message');
     
     // Chat
     DOM.chatContent            = $('chat-content');
@@ -159,7 +171,7 @@ function setupEventListeners() {
             if (currentWallet) {
                 switchWalletAccount();
             } else {
-                connectWallet();
+                openAuthModal();
             }
             return;
         }
@@ -207,6 +219,15 @@ function setupEventListeners() {
     DOM.profileModal?.addEventListener('click', (e) => {
         if (e.target === DOM.profileModal) closeModal();
     });
+
+    DOM.authClose?.addEventListener('click', closeAuthModal);
+    DOM.authCancel?.addEventListener('click', closeAuthModal);
+    DOM.authModal?.addEventListener('click', (e) => {
+        if (e.target === DOM.authModal) closeAuthModal();
+    });
+    DOM.authChooseWalletBtn?.addEventListener('click', chooseAuthWallet);
+    DOM.authRegisterBtn?.addEventListener('click', () => submitWalletAuth('register'));
+    DOM.authLoginBtn?.addEventListener('click', () => submitWalletAuth('login'));
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && DOM.profileModal?.style.display === 'flex') {
             closeModal();
@@ -345,35 +366,80 @@ function checkResponsive() {
     }
 }
 
-// ─── MetaMask 钱包登录与账号切换 / 自动回退 ─────────────────────────────────────
-async function connectWallet() {
+// ─── MetaMask 显式注册 / 登录 ──────────────────────────────────────────────────
+function showAuthMessage(message = '') {
+    if (DOM.authMessage) DOM.authMessage.textContent = message;
+}
+
+function openAuthModal() {
     if (typeof window.ethereum === 'undefined') {
         alert('未检测到兼容的钱包。请安装并解锁 MetaMask 后重试。');
+        return;
+    }
+    selectedAuthWallet = null;
+    if (DOM.authUsername) DOM.authUsername.value = '';
+    if (DOM.authWalletAddress) DOM.authWalletAddress.textContent = '尚未选择钱包';
+    showAuthMessage('先输入用户名并选择当前 MetaMask 钱包，再进行注册或登录签名。');
+    if (DOM.authModal) DOM.authModal.style.display = 'flex';
+    DOM.authUsername?.focus();
+}
+
+function closeAuthModal() {
+    if (DOM.authModal) DOM.authModal.style.display = 'none';
+    selectedAuthWallet = null;
+}
+
+async function chooseAuthWallet() {
+    if (typeof window.ethereum === 'undefined') {
         return;
     }
     try {
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
         const wallet = accounts[0];
         if (!wallet) throw new Error('未返回钱包地址');
-        const challengeData = await fetchApi(`/api/auth/challenge?wallet=${encodeURIComponent(wallet)}`);
-        const signature = await window.ethereum.request({ method: 'personal_sign', params: [challengeData.challenge, wallet] });
-        const login = await fetchApi('/api/auth/login', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ wallet, challengeId: challengeData.challengeId, signature })
-        });
-        if (!login?.account?.walletAddress) throw new Error('钱包签名验证失败');
-        if (!login.account.username) {
-            const username = window.prompt('首次注册：请输入用户名（最多 40 个字符）');
-            if (!username?.trim()) throw new Error('已取消用户名登记');
-            await fetchApi('/api/auth/username', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ wallet, username: username.trim() })
-            });
-        }
-        setWallet(wallet);
+        selectedAuthWallet = wallet;
+        if (DOM.authWalletAddress) DOM.authWalletAddress.textContent = wallet;
+        showAuthMessage('钱包已选择。请确认用户名后点击注册或登录。');
     } catch (err) {
-        console.warn('Wallet connection cancelled or failed:', err.message);
-        alert(`钱包未连接：${err.message || '请完成钱包签名验证后重试。'}`);
+        console.warn('Wallet selection cancelled or failed:', err.message);
+        showAuthMessage(`未选择钱包：${err.message || '请解锁钱包后重试。'}`);
+    }
+}
+
+async function getCurrentSelectedWallet() {
+    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+    const currentAddress = accounts?.[0];
+    if (!currentAddress || !selectedAuthWallet || currentAddress.toLowerCase() !== selectedAuthWallet.toLowerCase()) {
+        selectedAuthWallet = null;
+        if (DOM.authWalletAddress) DOM.authWalletAddress.textContent = '钱包已切换，请重新选择';
+        throw new Error('MetaMask 当前账户已变更，请重新选择钱包后再签名。');
+    }
+    return currentAddress;
+}
+
+async function submitWalletAuth(operation) {
+    try {
+        const username = DOM.authUsername?.value?.trim();
+        if (!username) throw new Error('请输入用户名');
+        if (username.length > 40) throw new Error('用户名最多 40 个字符');
+        if (!selectedAuthWallet) throw new Error('请先选择钱包');
+        const wallet = await getCurrentSelectedWallet();
+        const params = new URLSearchParams({ wallet, operation, username });
+        const challengeData = await fetchApi(`/api/auth/challenge?${params}`);
+        // 仅在用户点击“注册”或“登录”后签名；签名目标必须仍是当前 MetaMask 账户。
+        await getCurrentSelectedWallet();
+        const signature = await window.ethereum.request({ method: 'personal_sign', params: [challengeData.challenge, wallet] });
+        await getCurrentSelectedWallet();
+        const authResult = await fetchApi(`/api/auth/${operation}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wallet, username, challengeId: challengeData.challengeId, signature })
+        });
+        if (!authResult?.account?.walletAddress) throw new Error('钱包签名验证失败');
+        setWallet(wallet);
+        closeAuthModal();
+    } catch (err) {
+        console.warn('Wallet auth cancelled or failed:', err.message);
+        showAuthMessage(`操作未完成：${err.message || '请完成钱包签名验证后重试。'}`);
     }
 }
 
@@ -384,10 +450,8 @@ async function switchWalletAccount() {
                 method: 'wallet_requestPermissions',
                 params: [{ eth_accounts: {} }]
             });
-            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-            if (accounts && accounts[0]) {
-                await connectWallet();
-            }
+            disconnectWallet();
+            openAuthModal();
         } catch (err) {
             console.warn('Switch account notice:', err);
         }
@@ -399,6 +463,7 @@ function disconnectWallet() {
     activeProfile = null;
     profiles = [];
     savedSessions = [];
+    selectedAuthWallet = null;
     localStorage.removeItem('bazi_wallet');
     document.querySelectorAll('#wallet-btn, #wallet-btn-mobile, .wallet-btn').forEach(btn => {
         btn.textContent = '连接钱包';
@@ -411,12 +476,10 @@ function disconnectWallet() {
 function setupEthereumListeners() {
     if (typeof window.ethereum !== 'undefined' && window.ethereum.on) {
         window.ethereum.on('accountsChanged', (accounts) => {
-            if (accounts && accounts.length > 0) {
-                console.log('MetaMask account changed; a new signature is required');
-                disconnectWallet();
-            } else {
-                disconnectWallet();
-            }
+            console.log('MetaMask account changed; a new explicit login or registration is required');
+            disconnectWallet();
+            if (DOM.authWalletAddress) DOM.authWalletAddress.textContent = accounts?.[0] ? '钱包已切换，请重新选择' : '钱包已断开';
+            showAuthMessage('MetaMask 账户已变更。为保护账户，请重新选择钱包并手动注册或登录。');
         });
     }
 }
@@ -448,10 +511,16 @@ function checkWalletConnection() {
         renderUnconnectedState();
         return;
     }
-    window.ethereum.request({ method: 'eth_accounts' }).then(accounts => {
-        if (accounts?.[0]) connectWallet();
-        else disconnectWallet();
-    }).catch(disconnectWallet);
+    window.ethereum.request({ method: 'eth_accounts' }).then(setWalletCandidate).catch(() => {});
+}
+
+function setWalletCandidate(accounts) {
+    // 页面初始化只读取已授权地址；绝不自动签名或建立登录会话。
+    if (accounts?.[0]) {
+        document.querySelectorAll('#wallet-btn, #wallet-btn-mobile, .wallet-btn').forEach(btn => {
+            btn.textContent = '注册 / 登录';
+        });
+    }
 }
 
 function renderUnconnectedState() {
@@ -1349,6 +1418,14 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
         updatePipelineStage(stepsDiv, 3, 'running');
         if (DOM.reportContent) DOM.reportContent.innerHTML = '<em>正在生成运势报告正文...</em>';
         switchTab('tab-report');
+    }
+
+    else if (type === 'service_degraded') {
+        if (headerTitle) headerTitle.textContent = 'AI 专业解读暂未完整返回';
+        if (conclusionEl) {
+            conclusionEl.style.display = 'block';
+            conclusionEl.innerHTML = `<div class="service-degraded-notice" style="font-size: 13px; line-height: 1.6; color: #f3cf72; border: 1px solid rgba(226,183,20,.35); background: rgba(226,183,20,.08); border-radius: 8px; padding: 10px 12px;">${event.message || 'AI 专业解读服务暂不可用，当前仅展示简短盘面摘要。'}</div>`;
+        }
     }
 
     else if (type === 'report_delta') {

@@ -1064,6 +1064,33 @@ body {
 .modal-body {
     padding: 20px;
 }
+.auth-description {
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    line-height: 1.6;
+    margin-bottom: 16px;
+}
+.auth-wallet-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.auth-wallet-address {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-gold);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.76rem;
+}
+.auth-message {
+    min-height: 1.4em;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    line-height: 1.5;
+}
 .form-group {
     margin-bottom: 14px;
 }

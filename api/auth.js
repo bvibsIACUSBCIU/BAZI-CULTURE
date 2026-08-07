@@ -32,6 +32,16 @@ function buildAccountResponse(account) {
   };
 }
 
+function getHeader(req, name) {
+  const headers = req.headers || {};
+  if (typeof headers.get === 'function') return headers.get(name) || headers.get(name.toLowerCase());
+  return headers[name] || headers[name.toLowerCase()] || headers[name.toUpperCase()] || null;
+}
+
+function getRequestOrigin(req, url) {
+  return getHeader(req, 'origin') || url.origin;
+}
+
 /**
  * Auth API Endpoint Handler
  */
@@ -41,6 +51,7 @@ export async function handleAuthRequest(req) {
   const url = new URL(rawUrl, 'http://localhost');
   const path = url.pathname;
   const clientIp = getClientIp(req);
+  const requestOrigin = getRequestOrigin(req, url);
 
   let body = {};
   if (method === 'POST') {
@@ -55,28 +66,40 @@ export async function handleAuthRequest(req) {
     // 1. GET /api/auth/challenge
     if (path.endsWith('/challenge') && method === 'GET') {
       const wallet = url.searchParams.get('wallet');
-      if (!wallet) {
-        return createJsonResponse({ error: 'MISSING_WALLET_ADDRESS' }, 400);
+      const operation = url.searchParams.get('operation');
+      const username = url.searchParams.get('username');
+      if (!wallet || !operation || !username) {
+        return createJsonResponse({ error: 'INVALID_CHALLENGE_REQUEST' }, 400);
       }
-      const challengeData = defaultAuthService.generateChallenge(wallet);
+      const challengeData = defaultAuthService.generateChallenge(wallet, {
+        operation,
+        username,
+        origin: requestOrigin
+      });
       return createJsonResponse({ success: true, ok: true, ...challengeData });
     }
 
-    // 2. POST /api/auth/login
-    if (path.endsWith('/login') && method === 'POST') {
-      const { challengeId, wallet, signature } = body || {};
+    // 2. POST /api/auth/register and /api/auth/login
+    const authOperation = path.endsWith('/register') ? 'register' : (path.endsWith('/login') ? 'login' : null);
+    if (authOperation && method === 'POST') {
+      const { challengeId, wallet, signature, username } = body || {};
 
-      if (!challengeId || !wallet || !signature) {
-        return createJsonResponse({ error: 'INVALID_LOGIN_PAYLOAD' }, 400);
+      if (!challengeId || !wallet || !signature || !username) {
+        return createJsonResponse({ error: `INVALID_${authOperation.toUpperCase()}_PAYLOAD` }, 400);
       }
 
-      const isValid = defaultAuthService.verifySignature(challengeId, wallet, signature);
+      const isValid = defaultAuthService.verifySignature(challengeId, wallet, signature, {
+        operation: authOperation,
+        username,
+        origin: requestOrigin
+      });
       if (!isValid) {
         return createJsonResponse({ error: 'SIGNATURE_VERIFICATION_FAILED' }, 401);
       }
 
-      // 执行登录/注册及 IP 限制检查
-      const account = defaultAuthService.loginOrRegister(wallet, clientIp);
+      const account = authOperation === 'register'
+        ? defaultAuthService.register(wallet, username, clientIp)
+        : defaultAuthService.login(wallet, username);
       return createJsonResponse({
         success: true,
         ok: true,
@@ -98,12 +121,6 @@ export async function handleAuthRequest(req) {
         ok: true,
         account: buildAccountResponse(updatedAccount)
       });
-    }
-
-    if (path.endsWith('/username') && method === 'POST') {
-      const { wallet, username } = body || {};
-      const account = defaultAuthService.setUsername(wallet, username);
-      return createJsonResponse({ success: true, ok: true, account: buildAccountResponse(account) });
     }
 
     // 4. GET /api/auth/account
