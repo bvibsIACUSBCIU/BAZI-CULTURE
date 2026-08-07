@@ -66,6 +66,9 @@ export async function handleChatRequest(req) {
           onEvent: sendEvent
         });
 
+        // 供后续报告解释与客户端核对使用；载荷只含本次实际计算出的盘面事实。
+        sendEvent({ type: 'evidence', evidencePayload: pipelineResult.evidencePayload });
+
         defaultSessionHistoryService.updateSession(wallet, sessionId, {
           question,
           topic: pipelineResult.topics?.[0]?.topic || 'overview',
