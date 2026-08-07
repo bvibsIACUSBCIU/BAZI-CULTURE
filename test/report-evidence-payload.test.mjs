@@ -1,7 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { buildReportEvidencePayload } from "../lib/agent/multi-agent-pipeline.js";
 import {
+  callChatSummarizer,
   callGroupAnalysis,
   callReportWriter,
   callTaskPlanner,
@@ -104,7 +106,7 @@ test("证据载荷只保留允许的紫微奇门结构并递归移除事件注�
     },
   });
 
-  assert.ok(ids.includes("ziwei.palaces"));
+  assert.ok(ids.some((id) => id.startsWith("ziwei.placement.")));
   assert.ok(ids.includes("qimen.palaces"));
   assert.ok(!ids.some((id) => /annualFortune|event/u.test(id)));
   assert.doesNotMatch(serializedEvidence, /annualEvent|2026年将升职|明年会发生岗位晋升|投资亏损|跳槽事件|流年事件/u);
@@ -246,15 +248,51 @@ test("证据校验允许问题中的术语和载荷内同名八字事实", () =>
     evidenceRefs: ["bazi.tenGods"],
     details: [{ text: "年支藏干十神含七杀。", evidenceRefs: ["bazi.tenGods"] }],
   }, evidence);
+  const ziweiPlacementRef = evidence.facts.find((fact) => fact.id.startsWith("ziwei.placement."))?.id;
   const crossSystemHomonym = validateGroupAnalysisAgainstChart({
     conclusion: "七杀坐命宫。",
-    evidenceRefs: ["bazi.tenGods", "ziwei.palaces"],
+    evidenceRefs: ["bazi.tenGods", ziweiPlacementRef],
     details: [{ text: "八字藏干十神含七杀。", evidenceRefs: ["bazi.tenGods"] }],
   }, evidence);
 
   assert.equal(questionText.valid, true);
   assert.equal(baziHomonym.valid, true);
   assert.equal(crossSystemHomonym.valid, false);
+});
+
+test("紫微事实按具体宫位星曜落点编号且不允许跨宫拼接坐宫结论", () => {
+  const evidence = buildReportEvidencePayload({
+    chart: buildMinimalChart(),
+    ziwei: {
+      system: "ziwei",
+      palaces: [
+        { name: "命宫", majorStars: [{ name: "紫微" }] },
+        { name: "官禄宫", majorStars: [{ name: "七杀" }] },
+      ],
+    },
+    year: 2026,
+  });
+  const placementFacts = evidence.facts.filter((fact) => fact.id.startsWith("ziwei.placement."));
+  const ziweiInLife = placementFacts.find((fact) => fact.value.palace === "命宫" && fact.value.star === "紫微");
+  const qishaInCareer = placementFacts.find((fact) => fact.value.palace === "官禄宫" && fact.value.star === "七杀");
+
+  assert.ok(ziweiInLife);
+  assert.ok(qishaInCareer);
+  assert.equal(evidence.facts.some((fact) => fact.id === "ziwei.palaces"), false);
+
+  const invalid = validateGroupAnalysisAgainstChart({
+    conclusion: "七杀坐命宫。",
+    evidenceRefs: [ziweiInLife.id, qishaInCareer.id],
+    details: [{ text: "紫微坐命宫，七杀坐官禄宫。", evidenceRefs: [ziweiInLife.id, qishaInCareer.id] }],
+  }, evidence);
+  const valid = validateGroupAnalysisAgainstChart({
+    conclusion: "七杀坐官禄宫。",
+    evidenceRefs: [qishaInCareer.id],
+    details: [{ text: "紫微坐命宫。", evidenceRefs: [ziweiInLife.id] }],
+  }, evidence);
+
+  assert.equal(invalid.valid, false);
+  assert.equal(valid.valid, true);
 });
 
 test("年度问题原文可保留但同段回答中的无依据收入增长断言必须拒绝", () => {
@@ -272,6 +310,17 @@ test("年度问题原文可保留但同段回答中的无依据收入增长断�
 
   assert.equal(unsupported.valid, false);
   assert.equal(bounded.valid, true);
+});
+
+test("未加引号的混合问答句只忽略疑问是不允许的，断言尾部仍须校验", () => {
+  const evidence = buildReportEvidencePayload({ chart: buildMinimalChart(), year: 2026 });
+  const result = validateGroupAnalysisAgainstChart({
+    conclusion: "你问2026年收入增长吗，答案是2026年收入增长。",
+    evidenceRefs: ["bazi.dayMaster"],
+    details: [{ text: "日主为丙火。", evidenceRefs: ["bazi.dayMaster"] }],
+  }, evidence);
+
+  assert.equal(result.valid, false);
 });
 
 test("无年度或紫微事实时，伪造七杀化忌官禄流年事件不能通过校验或组分析", async () => {
@@ -339,6 +388,71 @@ test("规划器消费证据载荷，并在年度不可用时不要求大限流�
 
   assert.match(prompt, /"available":false/u);
   assert.doesNotMatch(prompt, /第3大限|当前大限|流年官禄|data_scope|强度为|years|palaces/u);
+});
+
+test("规划器拒绝只有日主引用却包含行业天赋和立刻转行断言的标题与子任务", async () => {
+  const evidence = buildReportEvidencePayload({ chart: buildMinimalChart(), year: 2026 });
+  const result = await callTaskPlanner({
+    question: "我是否应该转行做金融？",
+    evidencePayload: evidence,
+    apiKey: "test-key",
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: JSON.stringify({
+        topics: [{
+          topic: "事业",
+          groups: [{
+            group_title: "天生适合金融行业",
+            subtasks: ["应该立刻转行"],
+            evidence_refs: ["bazi.dayMaster"],
+          }],
+        }],
+      }) } }] }),
+    }),
+  });
+  const serialized = JSON.stringify(result);
+
+  assert.doesNotMatch(serialized, /天生适合金融行业|应该立刻转行/u);
+  assert.match(serialized, /我是否应该转行做金融/u);
+});
+
+test("组分析拒绝只有日主引用的行业转行和投资必盈断言", () => {
+  const evidence = buildReportEvidencePayload({ chart: buildMinimalChart(), year: 2026 });
+  const career = validateGroupAnalysisAgainstChart({
+    conclusion: "天生适合金融行业，应该立刻转行。",
+    evidenceRefs: ["bazi.dayMaster"],
+    details: [{ text: "日主为丙火。", evidenceRefs: ["bazi.dayMaster"] }],
+  }, evidence);
+  const investment = validateGroupAnalysisAgainstChart({
+    conclusion: "这个日主必然带来投资盈利。",
+    evidenceRefs: ["bazi.dayMaster"],
+    details: [{ text: "日主为丙火。", evidenceRefs: ["bazi.dayMaster"] }],
+  }, evidence);
+
+  assert.equal(career.valid, false);
+  assert.equal(investment.valid, false);
+});
+
+test("对话总结拒绝无结构引用的年度升职增收断言并回到证据摘要", async () => {
+  const evidence = buildReportEvidencePayload({ chart: buildMinimalChart(), year: 2026 });
+  const reportMarkdown = "# 报告\n\n## 直接回答：\n\n当前没有年度计算，只确认日主为丙火。[bazi.dayMaster]\n\n## 本题依据\n\n日主为丙火。[bazi.dayMaster]";
+  const result = await callChatSummarizer({
+    reportMarkdown,
+    year: 2026,
+    question: "2026年事业收入如何？",
+    evidencePayload: evidence,
+    apiKey: "test-key",
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: JSON.stringify({
+        summary: "2026年一定会升职，收入也会增长",
+        evidenceRefs: ["bazi.dayMaster"],
+      }) } }] }),
+    }),
+  });
+
+  assert.doesNotMatch(result, /一定会升职|收入也会增长/u);
+  assert.match(result, /日主为丙火|当前没有年度计算/u);
 });
 
 test("最终报告 writer 只请求载荷内事实并接收有效证据引用输出", async () => {
@@ -450,4 +564,10 @@ test("最终报告拒绝带聚合引用的无来源段落与立刻转行结论�
   assert.match(result, /我是否应该转行做金融/u);
   assert.match(result, /\[bazi\.dayMaster\]/u);
   assert.ok(countChineseCharacters(result) >= 1500);
+});
+
+test("API 不把规划器或组分析 prose 标记为程序计算事实", async () => {
+  const source = await readFile(new URL("../api/ai-report.js", import.meta.url), "utf8");
+
+  assert.doesNotMatch(source, /basis:\s*["']calculated["']/u);
 });

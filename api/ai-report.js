@@ -123,7 +123,7 @@ export function createAiReportHandler(options = {}) {
           sections: (pipelineResult.topics || []).flatMap(t => (t.groups || []).map(g => ({
             title: g.group_title,
             body: g.conclusion,
-            basis: "calculated",
+            basis: "evidence_linked",
             sourceRefs: g.evidenceRefs || [],
             factRefs: g.evidenceRefs || [],
             supportingFacts: g.details || [],

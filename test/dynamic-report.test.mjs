@@ -52,6 +52,18 @@ function countChineseCharacters(value) {
   return (String(value || "").match(/[\p{Script=Han}]/gu) || []).length;
 }
 
+function hanBigramSimilarity(left, right) {
+  const grams = (value) => {
+    const han = (String(value || "").match(/[\p{Script=Han}]/gu) || []).join("");
+    return new Set(Array.from({ length: Math.max(0, han.length - 1) }, (_, index) => han.slice(index, index + 2)));
+  };
+  const leftGrams = grams(left);
+  const rightGrams = grams(right);
+  const intersection = [...leftGrams].filter((gram) => rightGrams.has(gram)).length;
+  const union = new Set([...leftGrams, ...rightGrams]).size;
+  return union ? intersection / union : 1;
+}
+
 test("动态报告随四柱与专题变化且不含遗留静态模板", async () => {
   const career = buildDynamicUserReport(fireChart, careerContext);
   const wealth = buildDynamicUserReport(waterChart, wealthContext);
@@ -74,4 +86,15 @@ test("动态报告随四柱与专题变化且不含遗留静态模板", async ()
   assert.doesNotMatch(JSON.stringify(wealth), /本题未选择/u);
   assert.doesNotMatch(JSON.stringify(career), /厚积薄发|战略巩固期/);
   assert.doesNotMatch(source, /厚积薄发|战略巩固期/);
+  assert.doesNotMatch(source, /当信息不足时先补充资料|把观察记录、现实反馈和后续计算分别保存|REPORT_AUDIT_LENSES/u);
+
+  const careerParagraphs = Object.values(career).flatMap((section) => section.split(/\n\s*\n/gu).filter(Boolean));
+  const wealthParagraphs = Object.values(wealth).flatMap((section) => section.split(/\n\s*\n/gu).filter(Boolean));
+  assert.ok(careerParagraphs.length >= 18);
+  assert.ok(wealthParagraphs.length >= 18);
+  assert.ok(careerParagraphs.every((paragraph) => /\[bazi\.[^\]]+=/u.test(paragraph)));
+  assert.ok(wealthParagraphs.every((paragraph) => /\[bazi\.[^\]]+=/u.test(paragraph)));
+  assert.ok(careerParagraphs.every((paragraph) => /事业与行业专题|我是否应转向产品管理/u.test(paragraph)));
+  assert.ok(wealthParagraphs.every((paragraph) => /财富专题|今年如何安排现金流/u.test(paragraph)));
+  assert.ok(hanBigramSimilarity(Object.values(career).join(""), Object.values(wealth).join("")) < 0.7);
 });

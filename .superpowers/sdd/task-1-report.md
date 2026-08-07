@@ -223,3 +223,65 @@ exit 0
 
 - simulation 使用 `SIMULATION_MOCK_AI` 主动触发 provider unavailable，日志中的 fallback stack 是脚本设计的离线路径；最终状态为 0，并实际验证了动态 fallback 的 1500 中文字符和逐段证据章节。
 - 本次没有改动排盘计算、账户、钱包、历史或前端交互；范围仅限 report evidence / provenance / report quality。
+
+---
+
+## Final strict review 五项修复（动态解释、总结证据、紫微落点、问答分离、用户侧 provenance）
+
+### 根因与修复
+
+1. `buildDynamicUserReport` 与 Markdown renderer 都依赖固定段落和字符数循环追加审计话术。现已改成稳定事实编号和值的组合生成：六个 `userReport` 区段各由当前问题、专题、四柱、日主、五行、十神和关系事实组合成 5 个独立段落；Markdown 的扩展段落也由当前选中事实两两组合生成，不再存在固定 padding 循环或 `REPORT_AUDIT_LENSES`。
+2. `callChatSummarizer` 原先直接返回任意 LLM 文本。现在只接受 `{ summary, evidenceRefs }` JSON；引用必须存在，正文必须逐字包含每个引用事实的计算值，并复用年度、紫微与现实结果 claim validator。无结构或越权结果直接使用报告内的证据摘要降级。
+3. 紫微证据不再生成聚合 `ziwei.palaces`。每个宫位结构使用 `ziwei.palace.<index>`，每个星曜落点使用 `ziwei.placement.<palace>.<kind>.<star>`，值中保存精确 `{ palace, star }`。`七杀坐命宫` 只有引用同一条七杀-命宫落点事实才可通过；命宫紫微与官禄七杀不能交叉授权。
+4. 年度断言校验仅移除带引号的真实问题跨度；未加引号的 `吗/？` 不再豁免整个句子。因此 `你问2026年收入增长吗，答案是2026年收入增长` 会检查并拒绝后半断言。
+5. planner 的 `group_title/subtasks/evidence_refs` 在进入 pipeline 事件前逐组校验；group conclusion/details 复用同一 claim validator，拒绝仅凭日主声称“天生适合金融行业”“应该立刻转行”或“必然带来投资盈利”。`api/ai-report.js` 将这类已验证解释标记为 `basis: evidence_linked`，不再伪装成程序直接计算事实。
+
+### TDD RED（先新增回归测试，生产代码未修改）
+
+```text
+$ node --test test/report-evidence-payload.test.mjs test/dynamic-report.test.mjs
+tests 20; pass 13; fail 7
+
+✖ 动态报告随四柱与专题变化且不含遗留静态模板
+  source still contained fixed filler / REPORT_AUDIT_LENSES and paragraphs lacked fact-id=value anchors
+✖ 紫微事实按具体宫位星曜落点编号且不允许跨宫拼接坐宫结论
+  no ziwei.placement.* facts were generated
+✖ 未加引号的混合问答句只忽略疑问是不允许的，断言尾部仍须校验
+  mixed question/assertion returned valid=true
+✖ 规划器拒绝只有日主引用却包含行业天赋和立刻转行断言的标题与子任务
+  unvalidated planner prose was returned unchanged
+✖ 组分析拒绝只有日主引用的行业转行和投资必盈断言
+  material claims returned valid=true
+✖ 对话总结拒绝无结构引用的年度升职增收断言并回到证据摘要
+  adversarial summary was returned verbatim
+✖ API 不把规划器或组分析 prose 标记为程序计算事实
+  api/ai-report.js still contained basis: "calculated"
+```
+
+### GREEN 与最终经验验证
+
+```text
+$ node --test test/report-evidence-payload.test.mjs test/dynamic-report.test.mjs
+tests 20; pass 20; fail 0
+
+$ npm test
+tests 126; pass 126; fail 0
+
+$ node --env-file=.env scripts/test-simulation.mjs
+四柱: 年:丙子 月:丙申 日:丁亥 时:乙巳
+日主: 丁·火
+六阶段 pipeline 完整输出
+动态报告校验: 3096 个中文字符
+Markdown 报告校验: 2904 个中文字符
+exit 0
+```
+
+补充验证：
+
+- `node --check lib/agent/ai-service.js`
+- `node --check lib/agent/multi-agent-pipeline.js`
+- `node --check api/ai-report.js`
+- `git diff --check`
+- 源码扫描确认不存在旧 filler 句、`REPORT_AUDIT_LENSES` 或 `api/ai-report.js` 的 `basis: "calculated"`。
+
+仿真中的 `SIMULATION_MOCK_AI` / provider unavailable 日志仍是脚本主动验证离线降级路径；命令最终状态为 0。未修改 auth、钱包、历史逻辑，也未改动未跟踪的计划文件。
