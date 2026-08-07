@@ -79,7 +79,8 @@ export async function handleChatRequest(req) {
         // 终结事件，包含对话区核心结论
         sendEvent({
           type: 'conclusion',
-          text: pipelineResult.summary || '解析已完成，参阅右侧报告。'
+          text: pipelineResult.summary || '解析已完成，参阅右侧报告。',
+          serviceDegraded: pipelineResult.service?.degraded === true,
         });
 
         sendEvent({
@@ -88,7 +89,12 @@ export async function handleChatRequest(req) {
         });
 
         const duration = Date.now() - startTime;
-        sendEvent({ type: 'session_end', duration, creditsUsed: 0 });
+        sendEvent({
+          type: 'session_end',
+          duration,
+          creditsUsed: 0,
+          serviceDegraded: pipelineResult.service?.degraded === true,
+        });
       } catch (err) {
         console.error('6-Stage Pipeline execution error:', err);
         sendEvent({ type: 'error', message: err.message });

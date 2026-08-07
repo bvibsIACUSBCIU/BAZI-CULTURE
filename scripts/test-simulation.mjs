@@ -97,7 +97,7 @@ async function runSimulation() {
   );
 
   if (result && result.code === 200) {
-    const { chart, ai } = result.body;
+    const { chart, ai, service } = result.body;
     console.log("【1. 100% 确定性历法排盘结果 (Chart)】");
     console.log("四柱:", `年:${chart.pillars.year} 月:${chart.pillars.month} 日:${chart.pillars.day} 时:${chart.pillars.time}`);
     console.log("日主:", `${chart.dayMaster.stem}·${chart.dayMaster.element}`);
@@ -141,12 +141,24 @@ async function runSimulation() {
     if (reportChineseCharacters < 1500 || reportSections.some((section) => section.includes("本题未选择"))) {
       throw new Error(`动态通俗解盘质量不足：中文字符 ${reportChineseCharacters}，或包含固定未选择专题文本`);
     }
-    const markdownChineseCharacters = ((ai.reportMarkdown || "").match(/[\p{Script=Han}]/gu) || []).length;
-    if (markdownChineseCharacters < 1500 || !/## 直接回答[\s\S]*## 本题依据[\s\S]*## 如何理解[\s\S]*## 行动建议[\s\S]*## 下一步/u.test(ai.reportMarkdown || "")) {
-      throw new Error(`Markdown 报告质量不足：中文字符 ${markdownChineseCharacters}，或缺少证据链接章节`);
+    const markdown = ai.reportMarkdown || "";
+    const markdownChineseCharacters = (markdown.match(/[\p{Script=Han}]/gu) || []).length;
+    if (service?.degraded) {
+      if (markdownChineseCharacters > 800
+        || !/AI 解读服务|暂未/u.test(markdown)
+        || !/## 已确认盘面[\s\S]*## 回应你的问题[\s\S]*## 当前边界/u.test(markdown)
+        || /\[(?:bazi|ziwei|qimen)\./u.test(markdown)) {
+        throw new Error(`降级 Markdown 不符合短小诚实约束：中文字符 ${markdownChineseCharacters}`);
+      }
+    } else if (markdownChineseCharacters < 900
+      || !/〔依据：[^〕]+〕/u.test(markdown)
+      || /\[(?:bazi|ziwei|qimen)\./u.test(markdown)) {
+      throw new Error(`AI Markdown 报告质量不足：中文字符 ${markdownChineseCharacters}，或依据标记格式不正确`);
     }
     console.log(`动态报告校验: 六段文本已绑定本次四柱排盘事实，共 ${reportChineseCharacters} 个中文字符`);
-    console.log(`Markdown 报告校验: 逐段证据报告共 ${markdownChineseCharacters} 个中文字符`);
+    console.log(service?.degraded
+      ? `Markdown 降级校验: 已明确报告服务降级并输出 ${markdownChineseCharacters} 个中文字符的短摘要`
+      : `Markdown 报告校验: AI 专业报告共 ${markdownChineseCharacters} 个中文字符`);
     console.log("==================================================");
   } else {
     console.error("测试失败:", result);

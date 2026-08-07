@@ -140,6 +140,7 @@ export function createAiReportHandler(options = {}) {
         ok: true,
         chart,
         ai: aiResult,
+        service: pipelineResult.service,
         ...(creditInfo ? { credits: creditInfo.remainingCredits, remainingDialogues: creditInfo.remainingDialogues } : {})
       });
     } catch (error) {

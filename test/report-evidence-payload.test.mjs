@@ -699,7 +699,7 @@ test("Markdown 报告段落按实际选择事实生成，不强制十二段循�
   assert.ok(countChineseCharacters(sixFactReport) >= 1500);
 });
 
-test("最终报告 writer 只请求载荷内事实并接收有效证据引用输出", async () => {
+test("最终报告 writer 发送完整已计算数据与可读依据目录", async () => {
   const evidence = buildReportEvidencePayload({ chart: buildMinimalChart(), year: 2026 });
   let prompt = "";
 
@@ -724,9 +724,11 @@ test("最终报告 writer 只请求载荷内事实并接收有效证据引用输
     .filter((paragraph) => paragraph && !paragraph.startsWith("#"));
   assert.ok(materialParagraphs.every((paragraph) => /\[[a-z]+\.[^\]]+\]/u.test(paragraph)));
   assert.equal(new Set(materialParagraphs).size, materialParagraphs.length);
-  assert.match(prompt, /"id":"bazi\.dayMaster"/u);
-  assert.match(prompt, /evidence-selection-v1/u);
-  assert.doesNotMatch(prompt, /流年|大限|星曜|官禄|夫妻宫/u);
+  assert.match(prompt, /"dayMaster":\{"stem":"丙","element":"火"\}/u);
+  assert.match(prompt, /八字·日主/u);
+  assert.doesNotMatch(prompt, /evidence-selection-v1/u);
+  assert.match(prompt, /"ziwei":null,"qimen":null/u);
+  assert.doesNotMatch(prompt, /"name":"官禄宫"|"name":"夫妻宫"/u);
 });
 
 test("最终 writer prompt 不接收 planner/group 标题或分析 prose，只接收其选中的事实 id", async () => {
@@ -779,10 +781,10 @@ test("最终报告 writer 在缺少证据引用或输出越权断言时使用动
     }) } }] }) }),
   });
 
-  assert.match(result, /\[bazi\.dayMaster\]/u);
   assert.match(result, /丙火/u);
   assert.doesNotMatch(result, /2026年将升职|明年会发生岗位晋升/u);
-  assert.ok(countChineseCharacters(result) >= 1500);
+  assert.ok(countChineseCharacters(result) < 800);
+  assert.doesNotMatch(result, /\[bazi\.|事实编号|至少保留两种替代解释/u);
 });
 
 test("最终报告拒绝带聚合引用的无来源段落与立刻转行结论并动态降级", async () => {
@@ -806,8 +808,8 @@ test("最终报告拒绝带聚合引用的无来源段落与立刻转行结论�
 
   assert.doesNotMatch(result, /天生适合金融行业|应该立刻转行/u);
   assert.match(result, /我是否应该转行做金融/u);
-  assert.match(result, /\[bazi\.dayMaster\]/u);
-  assert.ok(countChineseCharacters(result) >= 1500);
+  assert.ok(countChineseCharacters(result) < 800);
+  assert.doesNotMatch(result, /\[bazi\.|事实编号|至少保留两种替代解释/u);
 });
 
 test("API 不把规划器或组分析 prose 标记为程序计算事实", async () => {

@@ -1458,13 +1458,17 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
             if (inner) {
                 inner.textContent += event.text_chunk;
             } else {
-                conclusionEl.innerHTML = `<div class="conclusion-text" style="font-size: 14px; line-height: 1.6; color: #eee;">${event.text_chunk}</div>`;
+                const summary = document.createElement('div');
+                summary.className = 'conclusion-text';
+                summary.style.cssText = 'font-size: 14px; line-height: 1.6; color: #eee; margin-top: 10px;';
+                summary.textContent = event.text_chunk;
+                conclusionEl.appendChild(summary);
             }
         }
     }
 
     else if (type === 'conclusion') {
-        if (headerTitle) headerTitle.textContent = `6-Stage 命理分析完成`;
+        if (headerTitle) headerTitle.textContent = event.serviceDegraded ? '分析完成 · AI 专业解读服务降级' : '6-Stage 命理分析完成';
     }
 
     else if (type === 'recommend') {
@@ -1482,7 +1486,7 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
     else if (type === 'session_end') {
         if (headerTitle) {
             const sec = Math.round((event.duration || 3000) / 1000);
-            headerTitle.textContent = `分析完成 · 用时 ${sec}s`;
+            headerTitle.textContent = event.serviceDegraded ? `分析完成（服务降级）· 用时 ${sec}s` : `分析完成 · 用时 ${sec}s`;
         }
         loadHistory();
     }
