@@ -783,7 +783,8 @@ test("最终报告 writer 在缺少证据引用或输出越权断言时使用动
 
   assert.match(result, /丙火/u);
   assert.doesNotMatch(result, /2026年将升职|明年会发生岗位晋升/u);
-  assert.ok(countChineseCharacters(result) >= 1500);
+  assert.ok(countChineseCharacters(result) >= 900);
+  assert.ok(countChineseCharacters(result) <= 1600);
   assert.doesNotMatch(result, /\[bazi\.|事实编号|至少保留两种替代解释/u);
 });
 
@@ -808,7 +809,8 @@ test("最终报告拒绝带聚合引用的无来源段落与立刻转行结论�
 
   assert.doesNotMatch(result, /天生适合金融行业|应该立刻转行/u);
   assert.match(result, /我是否应该转行做金融/u);
-  assert.ok(countChineseCharacters(result) >= 1500);
+  assert.ok(countChineseCharacters(result) >= 900);
+  assert.ok(countChineseCharacters(result) <= 1600);
   assert.doesNotMatch(result, /\[bazi\.|事实编号|至少保留两种替代解释/u);
 });
 

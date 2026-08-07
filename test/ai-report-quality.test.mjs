@@ -91,10 +91,11 @@ test("writer 服务失败时仍返回按命盘和问题生成的完整报告", a
   assert.equal(degradations[0].stage, "report_writer");
   assert.equal(degradations[0].presentation, "full_report");
   assert.match(result, /职业选择|我应该选择什么类型的工作/u);
-  assert.match(result, /核心画像|情感关系模式/u);
+  assert.match(result, /命盘基础|专题解读/u);
   assert.match(result, /丙火|丙午/u);
   assert.match(result, /我应该选择什么类型的工作/u);
-  assert.ok((result.match(/[\p{Script=Han}]/gu) || []).length >= 1500);
+  assert.ok((result.match(/[\p{Script=Han}]/gu) || []).length >= 1200);
+  assert.ok((result.match(/[\p{Script=Han}]/gu) || []).length <= 1800);
   assert.doesNotMatch(result, /\[bazi\.|ziwei\.placement|qimen\./u);
   assert.doesNotMatch(result, /AI 解读服务|暂未生成/u);
 });
@@ -303,6 +304,7 @@ test("6-Stage 在报告模型不可用时仍交付完整动态报告而不暴露
 
   assert.equal(result.service.degraded, false);
   assert.match(result.report, /姻缘专题|情感关系模式/u);
-  assert.ok((result.report.match(/[\p{Script=Han}]/gu) || []).length >= 1500);
+  assert.ok((result.report.match(/[\p{Script=Han}]/gu) || []).length >= 1200);
+  assert.ok((result.report.match(/[\p{Script=Han}]/gu) || []).length <= 1800);
   assert.equal(events.some((event) => event.type === "service_degraded"), false);
 });
