@@ -1699,3 +1699,36 @@ body {
     color: #ffca28;
 }
 
+/* 服务端 6-Stage 推演与报告证据入口 */
+.pipeline-stage-list {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+.pipeline-stage {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 7px 10px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: 0.76rem;
+}
+.pipeline-stage.running { border-color: var(--border-gold); color: var(--text-gold); }
+.pipeline-stage.done { border-color: rgba(76, 175, 80, 0.35); color: var(--text-primary); }
+.pipeline-stage-status { color: var(--text-muted); white-space: nowrap; }
+.report-chart-evidence {
+    display: block;
+    width: calc(100% - 24px);
+    margin: 0 12px 10px;
+    padding: 8px 10px;
+    background: rgba(211, 168, 94, 0.08);
+    border: 1px solid var(--border-gold);
+    border-radius: var(--radius-sm);
+    color: var(--text-gold);
+    font-size: 0.76rem;
+    text-align: left;
+    cursor: pointer;
+}
+.report-chart-evidence:hover { border-color: var(--border-gold-bright); }

@@ -66,6 +66,13 @@ export async function handleChatRequest(req) {
           onEvent: sendEvent
         });
 
+        defaultSessionHistoryService.updateSession(wallet, sessionId, {
+          question,
+          topic: pipelineResult.topics?.[0]?.topic || 'overview',
+          summary: pipelineResult.summary || '',
+          reportMarkdown: pipelineResult.report || '',
+        });
+
         // 终结事件，包含对话区核心结论
         sendEvent({
           type: 'conclusion',

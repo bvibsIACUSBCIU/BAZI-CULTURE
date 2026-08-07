@@ -27,6 +27,7 @@ function buildAccountResponse(account) {
     masterProfile: account.masterProfile,
     registeredIp: account.registeredIp,
     profileCount: account.masterProfile ? 1 : 0,
+    username: account.username || null,
     sessionCount
   };
 }
@@ -97,6 +98,12 @@ export async function handleAuthRequest(req) {
         ok: true,
         account: buildAccountResponse(updatedAccount)
       });
+    }
+
+    if (path.endsWith('/username') && method === 'POST') {
+      const { wallet, username } = body || {};
+      const account = defaultAuthService.setUsername(wallet, username);
+      return createJsonResponse({ success: true, ok: true, account: buildAccountResponse(account) });
     }
 
     // 4. GET /api/auth/account

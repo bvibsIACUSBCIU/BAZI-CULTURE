@@ -132,6 +132,12 @@ async function runSimulation() {
     console.log(ai.reading.userReport.wealth);
     console.log("### 当前建议");
     console.log(ai.reading.userReport.currentStage);
+    const reportSections = Object.values(ai.reading.userReport);
+    const pillars = Object.values(chart.pillars).filter(Boolean);
+    if (reportSections.length !== 6 || reportSections.some((section) => typeof section !== "string") || !reportSections.some((section) => pillars.some((pillar) => section.includes(pillar)))) {
+      throw new Error("动态通俗解盘未输出六个由实际四柱绑定的文本段落");
+    }
+    console.log("动态报告校验: 六段文本已绑定本次四柱排盘事实");
     console.log("==================================================");
   } else {
     console.error("测试失败:", result);

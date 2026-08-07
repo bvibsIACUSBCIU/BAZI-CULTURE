@@ -1,25 +1,6 @@
-// ─── 20 命理 Agent 列表 ───────────────────────────────────────────────────────
-const BAZI_AGENTS = [
-  { id: 'coordinator', name: '协调引擎 Coordinator', role: '意图识别与任务调度' },
-  { id: 'chart', name: '排盘引擎 Chart', role: '四柱干支历法计算' },
-  { id: 'bazi_struct', name: '八字结构 Struct', role: '格局与月令分析' },
-  { id: 'day_master', name: '日主分析 DayMaster', role: '日主五行旺衰评估' },
-  { id: 'hidden_stem', name: '藏干分析 HiddenStem', role: '地支藏干十神穿透' },
-  { id: 'ten_god', name: '十神解析 TenGod', role: '十神分布与意象映射' },
-  { id: 'element_count', name: '五行计数 Element', role: '表层五行多寡与偏颇分析' },
-  { id: 'pattern', name: '格局判定 Pattern', role: '普通格与从格识别' },
-  { id: 'stem_branch', name: '干支关系 StemBranch', role: '三合六合冲刑害穿分析' },
-  { id: 'liu_nian', name: '流年分析 LiuNian', role: '当年流年干支叠加' },
-  { id: 'da_yun', name: '大运分析 DaYun', role: '十年大运影响评估' },
-  { id: 'career', name: '事业分析 Career', role: '正财偏财官杀事业能量' },
-  { id: 'wealth', name: '财运分析 Wealth', role: '财运与财星强弱特征' },
-  { id: 'relationship', name: '感情分析 Relationship', role: '夫妻宫与桃花星分析' },
-  { id: 'health', name: '健康分析 Health', role: '五行与脏腑对应分析' },
-  { id: 'knowledge', name: '知识检索 Knowledge', role: '命理规则库与古籍检索' },
-  { id: 'validator', name: '校验引擎 Validator', role: '防幻觉与边界合规审核' },
-  { id: 'reasoning', name: '推理引擎 Reasoning', role: '多维证据整合与权重推理' },
-  { id: 'writer', name: '报告撰写 Writer', role: '结构化报告与白话解读' },
-  { id: 'summary', name: '精华摘要 Summary', role: '核心结论与建议总结' }
+// ─── 服务端 6-Stage 推演进度（仅呈现 SSE 已确认的阶段） ─────────────────────────
+const SIX_STAGE_LABELS = [
+    '命盘事实校验', '专题规划', '证据推演', '动态报告', '摘要收敛', '追问建议'
 ];
 
 // ─── 全局状态 ─────────────────────────────────────────────────────────────────
@@ -118,6 +99,7 @@ function initDOM() {
     DOM.qimenGrid              = $('qimen-grid');
     DOM.qimenMetaPills         = $('qimen-meta-pills');
     DOM.reportContent          = $('report-content');
+    DOM.reportChartEvidence    = $('report-chart-evidence');
     DOM.copyReportBtn          = $('copy-report-btn');
     DOM.exportPdfBtn           = $('export-pdf-btn');
     DOM.shareBtn               = $('share-btn');
@@ -267,6 +249,7 @@ function setupEventListeners() {
         }
         if (DOM.waitingState) DOM.waitingState.style.display = 'flex';
     });
+    DOM.reportChartEvidence?.addEventListener('click', () => switchTab('tab-bazi'));
 
     // 模式选择 Pill
     document.querySelectorAll('.mode-pill').forEach(pill => {
@@ -364,35 +347,33 @@ function checkResponsive() {
 
 // ─── MetaMask 钱包登录与账号切换 / 自动回退 ─────────────────────────────────────
 async function connectWallet() {
-    const mockAddr = '0x71c0a82b94f5e89d123456789abcdef012345678';
-    
     if (typeof window.ethereum === 'undefined') {
-        setWallet(mockAddr);
+        alert('未检测到兼容的钱包。请安装并解锁 MetaMask 后重试。');
         return;
     }
     try {
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
         const wallet = accounts[0];
-        if (!wallet) return;
-        try {
-            const challengeData = await fetchApi(`/api/auth/challenge?wallet=${encodeURIComponent(wallet)}`);
-            const challenge = challengeData.challenge || 'bazi_challenge_sign';
-            const signature = await window.ethereum.request({
-                method: 'personal_sign',
-                params: [challenge, wallet]
+        if (!wallet) throw new Error('未返回钱包地址');
+        const challengeData = await fetchApi(`/api/auth/challenge?wallet=${encodeURIComponent(wallet)}`);
+        const signature = await window.ethereum.request({ method: 'personal_sign', params: [challengeData.challenge, wallet] });
+        const login = await fetchApi('/api/auth/login', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wallet, challengeId: challengeData.challengeId, signature })
+        });
+        if (!login?.account?.walletAddress) throw new Error('钱包签名验证失败');
+        if (!login.account.username) {
+            const username = window.prompt('首次注册：请输入用户名（最多 40 个字符）');
+            if (!username?.trim()) throw new Error('已取消用户名登记');
+            await fetchApi('/api/auth/username', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ wallet, username: username.trim() })
             });
-            await fetchApi('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ wallet, challengeId: challengeData.challengeId || 'c1', signature })
-            });
-        } catch(authErr) {
-            console.warn('Auth notice:', authErr.message);
         }
         setWallet(wallet);
     } catch (err) {
-        console.error('MetaMask request notice:', err);
-        setWallet('0x93c0d82b94f5e89d123456789abcdef01147852');
+        console.warn('Wallet connection cancelled or failed:', err.message);
+        alert(`钱包未连接：${err.message || '请完成钱包签名验证后重试。'}`);
     }
 }
 
@@ -405,20 +386,11 @@ async function switchWalletAccount() {
             });
             const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
             if (accounts && accounts[0]) {
-                setWallet(accounts[0]);
+                await connectWallet();
             }
         } catch (err) {
             console.warn('Switch account notice:', err);
         }
-    } else {
-        const testAddrs = [
-            '0x71c0a82b94f5e89d123456789abcdef012345678',
-            '0x93c0d82b94f5e89d123456789abcdef01147852',
-            '0x8888b82b94f5e89d123456789abcdef09999999'
-        ];
-        const idx = testAddrs.indexOf(currentWallet);
-        const nextAddr = testAddrs[(idx + 1) % testAddrs.length];
-        setWallet(nextAddr);
     }
 }
 
@@ -440,8 +412,8 @@ function setupEthereumListeners() {
     if (typeof window.ethereum !== 'undefined' && window.ethereum.on) {
         window.ethereum.on('accountsChanged', (accounts) => {
             if (accounts && accounts.length > 0) {
-                console.log('MetaMask accountsChanged event:', accounts[0]);
-                setWallet(accounts[0]);
+                console.log('MetaMask account changed; a new signature is required');
+                disconnectWallet();
             } else {
                 disconnectWallet();
             }
@@ -463,10 +435,7 @@ function setWallet(address) {
 }
 
 function checkWalletConnection() {
-    const saved = localStorage.getItem('bazi_wallet');
-    if (saved) {
-        setWallet(saved);
-    } else {
+    if (typeof window.ethereum === 'undefined') {
         currentWallet = null;
         activeProfile = null;
         profiles = [];
@@ -477,7 +446,12 @@ function checkWalletConnection() {
         renderProfileList();
         loadHistory();
         renderUnconnectedState();
+        return;
     }
+    window.ethereum.request({ method: 'eth_accounts' }).then(accounts => {
+        if (accounts?.[0]) connectWallet();
+        else disconnectWallet();
+    }).catch(disconnectWallet);
 }
 
 function renderUnconnectedState() {
@@ -550,7 +524,7 @@ function renderNoProfilesState() {
 function sanitizeDateStr(rawDate) {
     if (!rawDate) return '1990-06-15';
     const str = String(rawDate).trim();
-    const match = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(str);
+    const match = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:T.*)?$/.exec(str);
     if (match) {
         const y = match[1].padStart(4, '0').slice(-4);
         const m = match[2].padStart(2, '0');
@@ -575,20 +549,6 @@ async function loadProfiles() {
     } catch(_) {
         const cached = localStorage.getItem(`bazi_profiles_${currentWallet}`);
         profiles = cached ? JSON.parse(cached) : [];
-    }
-
-    if (profiles.length === 0) {
-        const shortId = currentWallet.slice(-6);
-        const defaultProf = {
-            id: `prof-${shortId}`,
-            name: '主命主',
-            date: '2001-01-01',
-            time: '06:00',
-            gender: 'male',
-            timeKnown: true
-        };
-        profiles = [defaultProf];
-        saveProfilesLocally();
     }
 
     renderProfileList();
@@ -710,12 +670,18 @@ function openEditProfileModal(p) {
     if (DOM.profileModal) DOM.profileModal.style.display = 'flex';
 }
 
-function handleDeleteProfile(id) {
+async function handleDeleteProfile(id) {
     const p = profiles.find(x => x.id === id);
     if (!p) return;
     if (!confirm(`确定要删除命主【${p.name}】吗？`)) return;
 
-    profiles = profiles.filter(x => x.id !== id);
+    try {
+        const result = await fetchApi(`/api/profile?wallet=${encodeURIComponent(currentWallet || 'default')}&profileId=${encodeURIComponent(id)}`, { method: 'DELETE' });
+        profiles = Array.isArray(result.profiles) ? result.profiles : profiles.filter(x => x.id !== id);
+    } catch (error) {
+        console.error('Profile deletion failed:', error);
+        return alert('删除失败，请稍后重试。');
+    }
     saveProfilesLocally();
 
     if (activeProfile?.id === id) {
@@ -813,13 +779,14 @@ const STEM_ELEMENT_MAP = {
     '庚': { el: '金', tagCls: 'metal' }, '辛': { el: '金', tagCls: 'metal' },
     '壬': { el: '水', tagCls: 'water' }, '癸': { el: '水', tagCls: 'water' }
 };
+const BRANCH_ELEMENT_MAP = { 子: '水', 丑: '土', 寅: '木', 卯: '木', 辰: '土', 巳: '火', 午: '火', 未: '土', 申: '金', 酉: '金', 戌: '土', 亥: '水' };
 
 /**
  * 核心：选中命主后并发排盘渲染三大命盘
  */
 async function computeAndRenderAllCharts(profile) {
-    // 1. 基础四柱渲染 (参考图片1)
-    renderBaziPillarsChart(profile);
+    // 1. 基础四柱渲染：只消费服务端确定性历法计算结果
+    await safeFetchBaziApi(profile);
 
     // 2. 紫微十二宫渲染 (参考图片2)
     safeFetchZiweiApi(profile);
@@ -831,27 +798,20 @@ async function computeAndRenderAllCharts(profile) {
 /**
  * 1. 渲染基础四柱 (Image 1 样式)
  */
-function renderBaziPillarsChart(profile) {
-    const isWangling = profile.name === '王领';
-    const isHanli = profile.name === '韩立';
-
-    // 4 柱配置
-    const pillars = isWangling ? [
-        { title: '年柱', god: '偏印', stem: '庚', branch: '辰', stemEl: '金', branchEl: '土', mainHs: '戊·七杀', subHs: '乙·伤官 癸·劫财' },
-        { title: '月柱', god: '伤官', stem: '乙', branch: '酉', stemEl: '木', branchEl: '金', mainHs: '辛·正印', subHs: '—' },
-        { title: '日柱', god: '日主', stem: '壬', branch: '辰', stemEl: '水', branchEl: '土', mainHs: '戊·七杀', subHs: '乙·伤官 癸·劫财' },
-        { title: '时柱', god: '正财', stem: '丁', branch: '未', stemEl: '火', branchEl: '土', mainHs: '己·正官', subHs: '丁·正财 乙·伤官' }
-    ] : (isHanli ? [
-        { title: '年柱', god: '偏官', stem: '庚', branch: '辰', stemEl: '金', branchEl: '土', mainHs: '戊·七杀', subHs: '乙·伤官 癸·劫财' },
-        { title: '月柱', god: '正印', stem: '戊', branch: '子', stemEl: '土', branchEl: '水', mainHs: '癸·劫财', subHs: '—' },
-        { title: '日柱', god: '日主', stem: '丁', branch: '亥', stemEl: '火', branchEl: '水', mainHs: '壬·正官', subHs: '甲·正印' },
-        { title: '时柱', god: '偏印', stem: '癸', branch: '卯', stemEl: '水', branchEl: '木', mainHs: '乙·偏印', subHs: '—' }
-    ] : [
-        { title: '年柱', god: '正官', stem: '甲', branch: '子', stemEl: '木', branchEl: '水', mainHs: '癸·正印', subHs: '—' },
-        { title: '月柱', god: '偏财', stem: '丙', branch: '寅', stemEl: '火', branchEl: '木', mainHs: '甲·偏印', subHs: '丙·比肩' },
-        { title: '日柱', god: '日主', stem: '己', branch: '巳', stemEl: '土', branchEl: '火', mainHs: '丙·正印', subHs: '戊·劫财' },
-        { title: '时柱', god: '食神', stem: '辛', branch: '未', stemEl: '金', branchEl: '土', mainHs: '己·比肩', subHs: '丁·偏印' }
-    ]);
+function renderBaziPillarsChart(chart) {
+    const titles = { year: '年柱', month: '月柱', day: '日柱', time: '时柱' };
+    const pillars = Object.keys(titles).map(key => {
+        const value = chart?.pillars?.[key];
+        const hidden = chart?.tenGods?.branches?.[key]?.stems || [];
+        const formatHidden = item => `${item.stem}·${item.name}`;
+        return {
+            title: titles[key], god: chart?.tenGods?.stems?.[key] || '—',
+            stem: value?.[0] || '—', branch: value?.[1] || '—',
+            stemEl: STEM_ELEMENT_MAP[value?.[0]]?.el || '—', branchEl: BRANCH_ELEMENT_MAP[value?.[1]] || '—',
+            mainHs: hidden[0] ? formatHidden(hidden[0]) : '—',
+            subHs: hidden.slice(1).map(formatHidden).join(' ') || '—'
+        };
+    });
 
     if (DOM.bazi4pillarsGrid) {
         DOM.bazi4pillarsGrid.innerHTML = pillars.map(p => {
@@ -887,8 +847,21 @@ function renderBaziPillarsChart(profile) {
     }
 
     // 5 行计数条形图
-    const counts = isWangling ? { '木': 1, '火': 1, '土': 3, '金': 2, '水': 1 } : { '木': 2, '火': 2, '土': 2, '金': 1, '水': 1 };
-    renderWuxingBarsGroup(counts);
+    renderWuxingBarsGroup(chart?.elementCounts || {});
+}
+
+async function safeFetchBaziApi(profile) {
+    try {
+        const result = await fetchApi('/api/report', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date: sanitizeDateStr(profile.date), time: profile.time, timeKnown: profile.timeKnown !== false, birthplace: profile.birthplace || '', consent: true })
+        });
+        if (!result?.chart) throw new Error('命盘数据为空');
+        renderBaziPillarsChart(result.chart);
+    } catch (error) {
+        console.error('Bazi calculation failed:', error);
+        renderNoProfilesState();
+    }
 }
 
 function renderWuxingBarsGroup(counts) {
@@ -905,7 +878,7 @@ function renderWuxingBarsGroup(counts) {
 
     DOM.wuxingBarsGroup.innerHTML = elements.map(item => {
         const val = counts[item.key] || 0;
-        const pct = Math.round((val / (maxVal * 1.5)) * 100);
+        const pct = Math.round((val / maxVal) * 100);
         return `
         <div class="wuxing-bar-item">
             <span class="w-label">${item.key}</span>
@@ -1154,8 +1127,18 @@ function loadSessionDetail(sessionId) {
         currentReport = s.reportMarkdown;
         const parseFn = window.marked?.parse || window.marked || ((str) => str.replace(/\n/g, '<br>'));
         DOM.reportContent.innerHTML = typeof parseFn === 'function' ? parseFn(s.reportMarkdown) : s.reportMarkdown;
+        renderReportEvidenceLink(s.chartSummary);
         switchTab('tab-report');
     }
+}
+
+function renderReportEvidenceLink(chartSummary = '') {
+    if (!DOM.reportChartEvidence) return;
+    const profileName = activeProfile?.name || '当前命主';
+    DOM.reportChartEvidence.hidden = false;
+    DOM.reportChartEvidence.textContent = chartSummary
+        ? `依据：${chartSummary} · 查看当前确定命盘`
+        : `依据：${profileName}的当前确定命盘 · 查看基础四柱`;
 }
 
 async function addSessionToHistory(sessionData) {
@@ -1211,7 +1194,7 @@ async function sendMessage() {
     const conclusionEl = agentCardEl?.querySelector('.conclusion-card');
     const headerTitle  = agentCardEl?.querySelector('.agent-msg-title');
 
-    if (headerTitle) headerTitle.textContent = `20 Agent 命理推演中...（预计 30 秒+）`;
+    if (headerTitle) headerTitle.textContent = '正在连接 6-Stage 命理推演服务...';
 
     const mode = document.querySelector('input[name="chat-mode"]:checked')?.value || 'long';
     const agentMap = {};
@@ -1225,7 +1208,8 @@ async function sendMessage() {
                 profileId: activeProfile.id,
                 profile: activeProfile,
                 question: text,
-                mode
+                mode,
+                previousReport: currentReport || null
             })
         });
 
@@ -1256,79 +1240,36 @@ async function sendMessage() {
             scrollChatToBottom();
         }
     } catch (err) {
-        console.warn('SSE stream notice, executing client 20-agent simulation:', err.message);
-        await runClientAgentSimulation(text, mode, stepsDiv, conclusionEl, headerTitle, agentMap);
+        console.warn('SSE stream failed:', err.message);
+        if (headerTitle) headerTitle.textContent = '推演服务暂不可用';
+        if (conclusionEl) {
+            conclusionEl.style.display = 'block';
+            conclusionEl.textContent = '未收到服务端推演结果，未生成报告。请稍后重试。';
+        }
     } finally {
         isThinking = false;
         scrollChatToBottom();
     }
 }
 
-/**
- * 客户端 20-Agent 仿真推演
- */
-async function runClientAgentSimulation(question, mode, stepsDiv, conclusionEl, headerTitle, agentMap) {
-    const total = BAZI_AGENTS.length;
-    const startTime = Date.now();
+function formatStageTitle(index) {
+    return `Stage ${index + 1} · ${SIX_STAGE_LABELS[index]}`;
+}
 
-    for (let step = 0; step < total; step++) {
-        const agent = BAZI_AGENTS[step];
-        const stepNum = step + 1;
+function renderPipelineStages(stepsDiv) {
+    if (!stepsDiv) return;
+    stepsDiv.innerHTML = `<div class="pipeline-stage-list">${SIX_STAGE_LABELS.map((_, index) => `
+        <div class="pipeline-stage pending" data-stage="${index}">
+            <span>${formatStageTitle(index)}</span><span class="pipeline-stage-status">等待服务端事件</span>
+        </div>`).join('')}</div>`;
+}
 
-        handleSseEvent({
-            type: 'agent_thinking',
-            agentId: agent.id,
-            agentName: agent.name,
-            thinking: `正在由【${agent.name}】执行${agent.role}...`,
-            step: stepNum,
-            total
-        }, stepsDiv, conclusionEl, headerTitle, agentMap);
-
-        await new Promise(r => setTimeout(r, 1400));
-
-        handleSseEvent({
-            type: 'agent_done',
-            agentId: agent.id,
-            agentName: agent.name,
-            step: stepNum,
-            total
-        }, stepsDiv, conclusionEl, headerTitle, agentMap);
-
-        scrollChatToBottom();
-    }
-
-    const conclusionText = `根据您的八字命盘，日主气场显著。针对提问“${question.slice(0, 15)}...”，建议立足优势沉淀，建立清晰决策边界。`;
-    
-    handleSseEvent({ type: 'conclusion', text: conclusionText }, stepsDiv, conclusionEl, headerTitle, agentMap);
-
-    const markdownReport = `## 20-Agent 深度命理分析报告 (1500字)
-
-### 1. 核心格局与日主特征
-针对命主 **${activeProfile?.name || ''}** 的生辰原局四柱干支事实，日主天干为【壬水/丁火】。原局表层五行分布与地支藏干穿透显示出明确的性格底色。壬水通达，丁火昭融。具备强大的专注力与专业深度，在面对复杂环境时能保持清晰的战略定力。
-
-### 2. 事业发展模式
-在事业与能力展现方面，结合原局月柱与日柱形成的关键气场，决定了您更适合靠专业实力与标准化流程建立个人竞争壁垒。最佳的发展路径是锁定一个具备长期复利效应的专业领域，锤炼核心硬技能，建立属于您自己的标准化工作流程。对于团队协作，明确权责分工与结果导向将帮助您规避不必要的人文纷争。
-
-### 3. 感情与婚姻
-在感情与亲密关系中，夫妻宫承载着您对陪伴与家庭关系的内在预期。作为日主，您在感情表达上偏向务实与克制，相比于言语上的甜言蜜语，您更看重实际行动与深层安全感。伴侣通常需要具备独立的主见与相近的价值观，因此日常互动中学会适度放下掌控欲，给予对方足够的信任与独立空间，能让双方的关系更加温暖、稳定与融融。
-
-### 4. 健康状况与五行调和
-在健康管理与生理调适方面，表层五行多寡分布提供了直观的自我观察线索。建议建立科学的劳逸结合机制，定期进行户外放松，避免长期精神紧张或积压负面情绪对身体免疫与内分泌系统造成内在消耗，始终保持高能充沛的状态。
-
-### 5. 财运模式与资产配置
-在财运模式与资产配置上，您的求财特质偏向稳健与务实。核心收益源于专业技能的输出与价值兑现，而非高风险的投机运气。最稳妥的财运策略是做好现金流管理，建立风险对冲机制，实行中长期稳健理财与资产多元配置，严控财务杠杆风险，用时间换取资产的持续平稳增值。
-
-### 6. 当前阶段行动建议
-您当前正处于立足根基、厘清主线与提升自我的关键发展转折期。针对您关注的问题：“**${question}**”，建议第一明确核心主线方向，第二建立清晰权责边界，第三建立规律健康作息。保持战略定力，脚踏实地积累实力。
-`;
-
-    handleSseEvent({ type: 'report', markdown: markdownReport }, stepsDiv, conclusionEl, headerTitle, agentMap);
-    handleSseEvent({ type: 'session_end', duration: Date.now() - startTime, creditsUsed: 0 }, stepsDiv, conclusionEl, headerTitle, agentMap);
-    addSessionToHistory({
-        title: `问答: ${question.slice(0, 15)}...`,
-        summary: conclusionText,
-        reportMarkdown: markdownReport
-    });
+function updatePipelineStage(stepsDiv, index, state) {
+    const stage = stepsDiv?.querySelector(`.pipeline-stage[data-stage="${index}"]`);
+    if (!stage) return;
+    stage.className = `pipeline-stage ${state}`;
+    const status = stage.querySelector('.pipeline-stage-status');
+    if (status) status.textContent = state === 'done' ? '已确认' : '进行中';
 }
 
 function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
@@ -1336,12 +1277,15 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
 
     if (type === 'session_start') {
         if (headerTitle) headerTitle.textContent = `正在为「${event.profileName || activeProfile?.name}」进行 6-Stage 命理分析...`;
+        renderPipelineStages(stepsDiv);
+        updatePipelineStage(stepsDiv, 0, 'done');
     }
 
     else if (type === 'plan') {
         if (headerTitle) headerTitle.textContent = `6-Stage Pipeline 分析规划中...`;
         if (stepsDiv) {
-            stepsDiv.innerHTML = '';
+            updatePipelineStage(stepsDiv, 1, 'done');
+            updatePipelineStage(stepsDiv, 2, 'running');
             (event.topics || []).forEach(t => {
                 (t.groups || []).forEach(g => {
                     const groupId = `${t.topic}_${g.group_title.slice(0, 10)}`;
@@ -1401,6 +1345,8 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
 
     else if (type === 'report_start') {
         if (headerTitle) headerTitle.textContent = `撰写全盘 Markdown 运势报告...`;
+        updatePipelineStage(stepsDiv, 2, 'done');
+        updatePipelineStage(stepsDiv, 3, 'running');
         if (DOM.reportContent) DOM.reportContent.innerHTML = '<em>正在生成运势报告正文...</em>';
         switchTab('tab-report');
     }
@@ -1415,16 +1361,20 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
     }
 
     else if (type === 'report_done') {
+        updatePipelineStage(stepsDiv, 3, 'done');
+        updatePipelineStage(stepsDiv, 4, 'running');
         if (event.markdown) {
             currentReport = event.markdown;
             const parseFn = window.marked?.parse || window.marked || ((s) => s.replace(/\n/g, '<br>'));
             const html = typeof parseFn === 'function' ? parseFn(event.markdown) : event.markdown;
             const diffTag = event.diff ? `<div style="font-size: 12px; color: #888; margin-bottom: 12px; padding: 4px 8px; background: rgba(255,255,255,0.05); border-radius: 4px; display: inline-block;">‹ 版本 ${event.version} (新增 ${event.diff.added} 行, 删除 ${event.diff.removed} 行) ›</div>` : '';
             if (DOM.reportContent) DOM.reportContent.innerHTML = diffTag + html;
+            renderReportEvidenceLink();
         }
     }
 
     else if (type === 'summary_delta') {
+        updatePipelineStage(stepsDiv, 4, 'running');
         if (conclusionEl) {
             conclusionEl.style.display = 'block';
             const inner = conclusionEl.querySelector('.conclusion-text');
@@ -1441,6 +1391,8 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
     }
 
     else if (type === 'recommend') {
+        updatePipelineStage(stepsDiv, 4, 'done');
+        updatePipelineStage(stepsDiv, 5, 'done');
         if (conclusionEl && Array.isArray(event.questions) && event.questions.length > 0) {
             const chipsHtml = event.questions.map(q => `<button class="recommend-chip-btn" style="margin: 4px; padding: 6px 12px; background: rgba(226, 183, 20, 0.15); border: 1px solid rgba(226, 183, 20, 0.4); border-radius: 16px; color: #e2b714; font-size: 13px; cursor: pointer;" onclick="document.getElementById('chat-input').value='${q}';">${q}</button>`).join('');
             const container = document.createElement('div');

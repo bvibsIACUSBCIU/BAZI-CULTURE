@@ -4,17 +4,18 @@ export async function handleProfileRequest(req) {
   const method = (req.method || "GET").toUpperCase();
   const rawUrl = typeof req.url === "string" ? req.url : "http://localhost/api/profile";
   const url = new URL(rawUrl, "http://localhost");
-  const wallet = url.searchParams.get("wallet") || "default";
+  let wallet = url.searchParams.get("wallet") || "default";
   const searchQ = url.searchParams.get("q") || url.searchParams.get("query") || "";
 
   let body = {};
-  if (method === "POST") {
+  if (method === "POST" || method === "DELETE") {
     if (typeof req.json === "function") {
       body = await req.json().catch(() => ({}));
     } else if (req.body) {
       body = req.body;
     }
   }
+  wallet = body.wallet || wallet;
 
   try {
     if (method === "GET") {
@@ -66,6 +67,25 @@ export async function handleProfileRequest(req) {
       }
     }
 
+    if (method === "DELETE") {
+      const profileId = body.profileId || url.searchParams.get("profileId");
+      if (!profileId) {
+        return createJsonResponse({ ok: false, success: false, error: "MISSING_PROFILE_ID" }, 400);
+      }
+      if (!defaultProfileService.deleteProfile(wallet, profileId)) {
+        return createJsonResponse({ ok: false, success: false, error: "PROFILE_NOT_FOUND" }, 404);
+      }
+      const userStore = defaultProfileService.getProfiles(wallet);
+      const activeProfile = defaultProfileService.getActiveProfile(wallet) || null;
+      return createJsonResponse({
+        ok: true,
+        success: true,
+        profiles: userStore.profiles,
+        activeProfile,
+        activeProfileId: activeProfile?.id || null,
+      });
+    }
+
     return createJsonResponse({ ok: false, success: false, error: "NOT_FOUND" }, 404);
   } catch (err) {
     return createJsonResponse({ ok: false, success: false, error: err.message }, 500);
@@ -73,13 +93,10 @@ export async function handleProfileRequest(req) {
 }
 
 function createJsonResponse(data, status = 200) {
-  return {
+  return new Response(JSON.stringify(data), {
     status,
-    ok: status >= 200 && status < 300,
-    async json() {
-      return data;
-    }
-  };
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
 }
 
 export const profileHandler = handleProfileRequest;

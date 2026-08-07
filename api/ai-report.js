@@ -91,11 +91,14 @@ export function createAiReportHandler(options = {}) {
         profile,
         question: request.body?.question || "",
         year: 2026,
-        ...(options.mockAi ? { apiKey: null } : {})
+        ...(options.mockAi ? { fetchImpl: async () => { throw new Error("SIMULATION_MOCK_AI"); } } : {})
       });
 
       const chart = pipelineResult.chart;
-      const dynamicReport = buildDynamicUserReport(chart);
+      const dynamicReport = buildDynamicUserReport(chart, {
+        question: request.body?.question || "",
+        topics: pipelineResult.topics,
+      });
 
       // Structure formatted for simulation test & backwards compatibility
       const aiResult = {

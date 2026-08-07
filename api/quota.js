@@ -70,13 +70,10 @@ export async function handleQuotaRequest(req) {
 }
 
 function createJsonResponse(data, status = 200) {
-  return {
+  return new Response(JSON.stringify(data), {
     status,
-    ok: status >= 200 && status < 300,
-    async json() {
-      return data;
-    }
-  };
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
 }
 
 export const quotaHandler = handleQuotaRequest;
