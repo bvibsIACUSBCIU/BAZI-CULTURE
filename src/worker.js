@@ -3,6 +3,7 @@ import { handleProfileRequest } from '../api/profile.js';
 import handleSessionHistoryRequest from '../api/session-history.js';
 import handlePreferencesRequest from '../api/preferences.js';
 import { handleChatRequest } from '../api/chat.js';
+import { handleQuotaRequest } from '../api/quota.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -24,6 +25,7 @@ async function route(request, env) {
     return handleSessionHistoryRequest(request, { env });
   }
   if (url.pathname === '/api/preferences') return handlePreferencesRequest(request, { env });
+  if (url.pathname === '/api/quota') return handleQuotaRequest(request, { env });
   if (url.pathname === '/api/chat') return handleChatRequest(request, { env });
   return json({ ok: false, error: 'NOT_FOUND' }, 404);
 }

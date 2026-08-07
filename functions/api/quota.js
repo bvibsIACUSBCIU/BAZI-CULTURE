@@ -1,8 +1,8 @@
 import handleQuotaRequest from "../../api/quota.js";
 
 export async function onRequest(context) {
-  const { request } = context;
-  return handleQuotaRequest(request);
+  const { request, env } = context;
+  return handleQuotaRequest(request, { env });
 }
 
 export default {
