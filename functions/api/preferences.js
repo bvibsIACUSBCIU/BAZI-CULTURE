@@ -1,8 +1,7 @@
-import { handleAuthRequest } from "../../api/auth.js";
+import handlePreferencesRequest from '../../api/preferences.js';
 
 export async function onRequest(context) {
-  const { request, env } = context;
-  return handleAuthRequest(request, { env });
+  return handlePreferencesRequest(context.request, { env: context.env });
 }
 
 export default {

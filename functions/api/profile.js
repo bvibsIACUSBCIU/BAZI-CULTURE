@@ -1,8 +1,8 @@
 import handleProfileRequest from "../../api/profile.js";
 
 export async function onRequest(context) {
-  const { request } = context;
-  return handleProfileRequest(request);
+  const { request, env } = context;
+  return handleProfileRequest(request, { env });
 }
 
 export default {

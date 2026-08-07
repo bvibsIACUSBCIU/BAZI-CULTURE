@@ -1,8 +1,8 @@
 import handleSessionHistoryRequest from "../../api/session-history.js";
 
 export async function onRequest(context) {
-  const { request } = context;
-  return handleSessionHistoryRequest(request);
+  const { request, env } = context;
+  return handleSessionHistoryRequest(request, { env });
 }
 
 export default {
