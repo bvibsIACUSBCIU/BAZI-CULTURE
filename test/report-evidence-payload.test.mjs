@@ -295,6 +295,40 @@ test("紫微事实按具体宫位星曜落点编号且不允许跨宫拼接坐�
   assert.equal(valid.valid, true);
 });
 
+test("紫微有星与会照措辞也必须引用同一条精确星宫落点", () => {
+  const evidence = buildReportEvidencePayload({
+    chart: buildMinimalChart(),
+    ziwei: {
+      system: "ziwei",
+      palaces: [
+        { name: "命宫", majorStars: [{ name: "紫微" }] },
+        { name: "官禄宫", majorStars: [{ name: "七杀" }] },
+      ],
+    },
+    year: 2026,
+  });
+  const placements = evidence.facts.filter((fact) => fact.id.startsWith("ziwei.placement."));
+  const ziweiInLife = placements.find((fact) => fact.value.palace === "命宫" && fact.value.star === "紫微");
+  const qishaInCareer = placements.find((fact) => fact.value.palace === "官禄宫" && fact.value.star === "七杀");
+  const crossRefs = [ziweiInLife.id, qishaInCareer.id];
+
+  for (const conclusion of ["命宫有七杀。", "七杀会照命宫。"]) {
+    const result = validateGroupAnalysisAgainstChart({
+      conclusion,
+      evidenceRefs: crossRefs,
+      details: [{ text: "紫微在命宫，七杀在官禄宫。", evidenceRefs: crossRefs }],
+    }, evidence);
+    assert.equal(result.valid, false, conclusion);
+  }
+
+  const exact = validateGroupAnalysisAgainstChart({
+    conclusion: "官禄宫有七杀。",
+    evidenceRefs: [qishaInCareer.id],
+    details: [{ text: "七杀会照官禄宫。", evidenceRefs: [qishaInCareer.id] }],
+  }, evidence);
+  assert.equal(exact.valid, true);
+});
+
 test("年度问题原文可保留但同段回答中的无依据收入增长断言必须拒绝", () => {
   const evidence = buildReportEvidencePayload({ chart: buildMinimalChart(), year: 2026 });
   const unsupported = validateGroupAnalysisAgainstChart({
@@ -321,6 +355,25 @@ test("未加引号的混合问答句只忽略疑问是不允许的，断言尾�
   }, evidence);
 
   assert.equal(result.valid, false);
+});
+
+test("年度断言按分句校验，前置限制不能授权后续肯定结论", () => {
+  const evidence = buildReportEvidencePayload({ chart: buildMinimalChart(), year: 2026 });
+  const detail = [{ text: "日主为丙火。", evidenceRefs: ["bazi.dayMaster"] }];
+  const claims = [
+    "不能确认2026年事业顺利，但2026年事业顺利。",
+    "没有证据表明2026年收入更好，不过2026年收入更好。",
+    "未计算2026年财运，实际2026年财运旺。",
+  ];
+
+  for (const conclusion of claims) {
+    const result = validateGroupAnalysisAgainstChart({
+      conclusion,
+      evidenceRefs: ["bazi.dayMaster"],
+      details: detail,
+    }, evidence);
+    assert.equal(result.valid, false, conclusion);
+  }
 });
 
 test("无年度或紫微事实时，伪造七杀化忌官禄流年事件不能通过校验或组分析", async () => {
@@ -416,6 +469,65 @@ test("规划器拒绝只有日主引用却包含行业天赋和立刻转行断�
   assert.match(serialized, /我是否应该转行做金融/u);
 });
 
+test("规划器只接受事实选择与受限意图，不暴露性格能力自由 prose", async () => {
+  const evidence = buildReportEvidencePayload({ chart: buildMinimalChart(), year: 2026 });
+  let prompt = "";
+  const result = await callTaskPlanner({
+    question: "请分析职业规划",
+    evidencePayload: evidence,
+    apiKey: "test-key",
+    fetchImpl: async (_url, options) => {
+      prompt = JSON.parse(options.body).messages.at(-1).content;
+      return {
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: JSON.stringify({
+          topics: [{
+            topic: "事业",
+            groups: [{
+              group_title: "日主丙火说明命主缺乏领导力",
+              subtasks: ["据此判断用户性格冲动"],
+              evidence_refs: ["bazi.dayMaster"],
+            }],
+          }],
+        }) } }] }),
+      };
+    },
+  });
+  const serialized = JSON.stringify(result);
+
+  assert.match(prompt, /evidence-plan-v1/u);
+  assert.doesNotMatch(serialized, /缺乏领导力|性格冲动/u);
+});
+
+test("规划器把受限意图与事实编号渲染为安全任务文案", async () => {
+  const evidence = buildReportEvidencePayload({ chart: buildMinimalChart(), year: 2026 });
+  const result = await callTaskPlanner({
+    question: "请分析职业规划",
+    evidencePayload: evidence,
+    apiKey: "test-key",
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: JSON.stringify({
+        schemaVersion: "evidence-plan-v1",
+        topics: [{
+          topic: "事业",
+          groups: [{
+            intent: "compare_facts",
+            actions: ["state_facts", "check_reality"],
+            evidence_refs: ["bazi.dayMaster", "bazi.pillars.day"],
+          }],
+        }],
+      }) } }] }),
+    }),
+  });
+
+  assert.equal(result.topics[0].groups[0].intent, "compare_facts");
+  assert.match(result.topics[0].groups[0].group_title, /事业|事实/u);
+  assert.ok(result.topics[0].groups[0].subtasks.length === 2);
+  assert.deepEqual(result.topics[0].groups[0].evidence_refs, ["bazi.dayMaster", "bazi.pillars.day"]);
+  assert.doesNotMatch(JSON.stringify(result), /性格|领导力|冲动/u);
+});
+
 test("组分析拒绝只有日主引用的行业转行和投资必盈断言", () => {
   const evidence = buildReportEvidencePayload({ chart: buildMinimalChart(), year: 2026 });
   const career = validateGroupAnalysisAgainstChart({
@@ -431,6 +543,63 @@ test("组分析拒绝只有日主引用的行业转行和投资必盈断言", ()
 
   assert.equal(career.valid, false);
   assert.equal(investment.valid, false);
+});
+
+test("组分析只接受受限解释意图，不暴露日主推导的性格能力自由 prose", async () => {
+  const evidence = buildReportEvidencePayload({ chart: buildMinimalChart(), year: 2026 });
+  let prompt = "";
+  let requests = 0;
+  const result = await callGroupAnalysis({
+    groupTitle: "职业事实核对",
+    subtasks: ["核对当前计算事实"],
+    resolvedChartData: evidence,
+    relevantSignals: evidence.facts,
+    apiKey: "test-key",
+    fetchImpl: async (_url, options) => {
+      requests += 1;
+      prompt = JSON.parse(options.body).messages.at(-1).content;
+      return {
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: JSON.stringify({
+          conclusion: "日主丙火说明命主缺乏领导力",
+          evidenceRefs: ["bazi.dayMaster"],
+          details: [{ text: "据此判断用户性格冲动", evidenceRefs: ["bazi.dayMaster"] }],
+        }) } }] }),
+      };
+    },
+  });
+  const serialized = JSON.stringify(result);
+
+  assert.equal(requests, 2);
+  assert.match(prompt, /evidence-interpretation-v1/u);
+  assert.doesNotMatch(serialized, /缺乏领导力|性格冲动/u);
+});
+
+test("组分析把受限解释意图与事实编号渲染为安全结论", async () => {
+  const evidence = buildReportEvidencePayload({ chart: buildMinimalChart(), year: 2026 });
+  const result = await callGroupAnalysis({
+    groupTitle: "职业事实核对",
+    subtasks: ["核对当前计算事实"],
+    resolvedChartData: evidence,
+    relevantSignals: evidence.facts,
+    apiKey: "test-key",
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: JSON.stringify({
+        schemaVersion: "evidence-interpretation-v1",
+        conclusion: { intent: "scope_answer", factRefs: ["bazi.dayMaster"] },
+        details: [
+          { intent: "fact_explanation", factRefs: ["bazi.dayMaster"] },
+          { intent: "reality_check", factRefs: ["bazi.pillars.day"] },
+        ],
+      }) } }] }),
+    }),
+  });
+
+  assert.match(result.conclusion, /日主|丙火/u);
+  assert.equal(result.details.length, 2);
+  assert.deepEqual(result.evidenceRefs, ["bazi.dayMaster", "bazi.pillars.day"]);
+  assert.doesNotMatch(JSON.stringify(result), /性格|领导力|冲动/u);
 });
 
 test("对话总结拒绝无结构引用的年度升职增收断言并回到证据摘要", async () => {
@@ -453,6 +622,81 @@ test("对话总结拒绝无结构引用的年度升职增收断言并回到证�
 
   assert.doesNotMatch(result, /一定会升职|收入也会增长/u);
   assert.match(result, /日主为丙火|当前没有年度计算/u);
+});
+
+test("对话总结只接受受限摘要意图，不暴露性格能力自由 prose", async () => {
+  const evidence = buildReportEvidencePayload({ chart: buildMinimalChart(), year: 2026 });
+  const reportMarkdown = "# 报告\n\n## 直接回答\n\n当前只确认日主为丙火。[bazi.dayMaster]\n\n## 本题依据\n\n日主为丙火。[bazi.dayMaster]";
+  let prompt = "";
+  const result = await callChatSummarizer({
+    reportMarkdown,
+    question: "请分析职业规划",
+    evidencePayload: evidence,
+    apiKey: "test-key",
+    fetchImpl: async (_url, options) => {
+      prompt = JSON.parse(options.body).messages.at(-1).content;
+      return {
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: JSON.stringify({
+          summary: "日主为丙火，说明你性格冲动且缺乏领导力",
+          evidenceRefs: ["bazi.dayMaster"],
+        }) } }] }),
+      };
+    },
+  });
+
+  assert.match(prompt, /evidence-summary-v1/u);
+  assert.doesNotMatch(result, /性格冲动|缺乏领导力/u);
+  assert.match(result, /丙火/u);
+});
+
+test("对话总结把受限摘要意图与事实编号渲染为安全文本", async () => {
+  const evidence = buildReportEvidencePayload({ chart: buildMinimalChart(), year: 2026 });
+  const result = await callChatSummarizer({
+    reportMarkdown: "# 报告",
+    question: "请分析职业规划",
+    evidencePayload: evidence,
+    apiKey: "test-key",
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: JSON.stringify({
+        schemaVersion: "evidence-summary-v1",
+        blocks: [
+          { intent: "direct_answer", factRefs: ["bazi.dayMaster"] },
+          { intent: "fact_snapshot", factRefs: ["bazi.pillars.day"] },
+          { intent: "next_check", factRefs: ["bazi.dayMaster", "bazi.pillars.day"] },
+        ],
+      }) } }] }),
+    }),
+  });
+
+  assert.match(result, /请分析职业规划|丙火|丙午/u);
+  assert.doesNotMatch(result, /性格|领导力|冲动/u);
+});
+
+test("Markdown 报告段落按实际选择事实生成，不强制十二段循环", async () => {
+  const evidence = buildReportEvidencePayload({ chart: buildMinimalChart(), year: 2026 });
+  const fourRefs = evidence.facts.slice(0, 4).map((fact) => fact.id);
+  const sixRefs = evidence.facts.slice(0, 6).map((fact) => fact.id);
+  const render = async (refs, question) => callReportWriter({
+    question,
+    evidencePayload: evidence,
+    apiKey: "test-key",
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: JSON.stringify(buildWriterSelection(evidence, refs)) } }] }),
+    }),
+  });
+  const fourFactReport = await render(fourRefs, "如何规划职业？");
+  const sixFactReport = await render(sixRefs, "如何安排现金流？");
+  const materialCount = (report) => report.split(/\n\s*\n/gu)
+    .map((paragraph) => paragraph.trim())
+    .filter((paragraph) => paragraph && !paragraph.startsWith("#")).length;
+
+  assert.notEqual(materialCount(fourFactReport), materialCount(sixFactReport));
+  assert.ok(materialCount(sixFactReport) > materialCount(fourFactReport));
+  assert.ok(countChineseCharacters(fourFactReport) >= 1500);
+  assert.ok(countChineseCharacters(sixFactReport) >= 1500);
 });
 
 test("最终报告 writer 只请求载荷内事实并接收有效证据引用输出", async () => {

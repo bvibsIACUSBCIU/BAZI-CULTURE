@@ -98,3 +98,29 @@ test("动态报告随四柱与专题变化且不含遗留静态模板", async ()
   assert.ok(wealthParagraphs.every((paragraph) => /财富专题|今年如何安排现金流/u.test(paragraph)));
   assert.ok(hanBigramSimilarity(Object.values(career).join(""), Object.values(wealth).join("")) < 0.7);
 });
+
+test("动态报告段落由实际事实与专题决定，不固定循环六区各五段", async () => {
+  const sparseChart = {
+    pillars: { day: "丙午" },
+    dayMaster: { stem: "丙", element: "火" },
+    elementCounts: { 火: 2 },
+    tenGods: { stems: { day: "日主" } },
+    relations: { stems: [], branches: [], groups: [] },
+  };
+  const career = buildDynamicUserReport(fireChart, careerContext);
+  const sparseCareer = buildDynamicUserReport(sparseChart, careerContext);
+  const sparseHealth = buildDynamicUserReport(sparseChart, {
+    question: "怎样记录最近的睡眠变化？",
+    topics: [{ topic: "健康专题", groups: [] }],
+  });
+  const sourcePath = fileURLToPath(new URL("../lib/agent/ai-service.js", import.meta.url));
+  const source = await readFile(sourcePath, "utf8");
+  const paragraphCount = (report) => Object.values(report)
+    .flatMap((section) => section.split(/\n\s*\n/gu).filter(Boolean)).length;
+
+  assert.notEqual(paragraphCount(career), paragraphCount(sparseCareer));
+  assert.notEqual(paragraphCount(sparseCareer), paragraphCount(sparseHealth));
+  assert.ok(paragraphCount(career) > paragraphCount(sparseCareer));
+  assert.doesNotMatch(source, /Array\.from\(\{\s*length:\s*5\s*\}|Math\.max\(12,\s*facts\.length\)|%\s*facts\.length|slice\(0,\s*12\)/u);
+  assert.doesNotMatch(source, /固定补足|循环扩写|长度填充|静态填充/u);
+});

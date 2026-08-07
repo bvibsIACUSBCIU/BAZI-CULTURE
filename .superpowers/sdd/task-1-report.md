@@ -285,3 +285,63 @@ exit 0
 - 源码扫描确认不存在旧 filler 句、`REPORT_AUDIT_LENSES` 或 `api/ai-report.js` 的 `basis: "calculated"`。
 
 仿真中的 `SIMULATION_MOCK_AI` / provider unavailable 日志仍是脚本主动验证离线降级路径；命令最终状态为 0。未修改 auth、钱包、历史逻辑，也未改动未跟踪的计划文件。
+
+---
+
+## P1 final-review 四项语义质量加固
+
+### 根因与实现
+
+1. `buildDynamicUserReport` 仍通过 `Array.from({ length: 5 })` 为六个固定区段各生成五段，并用 `% facts.length` 循环复用事实；Markdown 的组合区又用 `Math.max(12, facts.length)` 强制至少十二段。现改为按本次实际 Bazi facts 逐条生成“事实范围、替代解释、现实核对、可撤回行动”段落，再按专题选择真实存在的语义组合；段落总数随事实数量和专题改变。Markdown 同样每个选中事实只生成一个组合解读，不再设置固定段数、长度循环或十二项截断。
+2. planner、group、summary 虽已有引用校验，LLM 仍可提交任意 prose。现分别改成 `evidence-plan-v1`、`evidence-interpretation-v1`、`evidence-summary-v1`：模型只能选择事实 id、有限 intent 和有限 action；标题、子任务、结论、详情与总结全部由服务端根据已计算 facts 渲染。旧的 `summary`、`group_title/subtasks`、`conclusion/details.text` 自由文本结构一律拒绝并走安全降级，因此 `日主为丙火，说明你性格冲动且缺乏领导力`、`日主丙火说明命主缺乏领导力`、`据此判断用户性格冲动` 不会进入 API 用户侧 evidence-linked 内容。
+3. 紫微星宫配对抽取补充“宫位有星”“星会照宫位”“星在/位于宫位”等说法。每个抽取到的 `{ star, palace }` 必须由同一条 `ziwei.placement.*` fact 精确支持，命宫紫微与官禄七杀等分离事实不能交叉拼成“命宫有七杀”或“七杀会照命宫”。
+4. 年度判断从整句否定豁免改为分句检查；句号、分号、逗号及“但/不过/然而/可是/却/实际/事实上”等转折边界分别校验。前句“不能确认/没有证据/未计算”不会再授权后句肯定年度结果。
+5. 离线 planner fallback 根据当前专题选择 Bazi 核心事实、对应紫微宫位落点与少量奇门结构，而不是把全载荷都当作相关事实；fallback writer 将实际 facts 按事实/解释/行动语义分区，不再四个章节重复全部 facts。仿真 Markdown 从中间实现的 34978 个中文字符降至 4886，同时保留所有本题所选事实与 1500 字门槛。
+
+### TDD RED（生产代码修改前）
+
+```text
+$ node --test test/report-evidence-payload.test.mjs test/dynamic-report.test.mjs
+tests 27; pass 21; fail 6
+
+✖ 动态报告段落由实际事实与专题决定，不固定循环六区各五段
+  AssertionError: career/full、career/sparse、health/sparse 均固定为 30 段
+✖ 紫微有星与会照措辞也必须引用同一条精确星宫落点
+  AssertionError: 命宫有七杀 returned valid=true
+✖ 年度断言按分句校验，前置限制不能授权后续肯定结论
+  AssertionError: 不能确认2026年事业顺利，但2026年事业顺利 returned valid=true
+✖ 规划器只接受事实选择与受限意图，不暴露性格能力自由 prose
+  AssertionError: prompt 尚无 evidence-plan-v1
+✖ 组分析只接受受限解释意图，不暴露日主推导的性格能力自由 prose
+  AssertionError: raw conclusion/details prose 首次请求即通过
+✖ 对话总结只接受受限摘要意图，不暴露性格能力自由 prose
+  AssertionError: prompt 尚无 evidence-summary-v1
+```
+
+随后补充三条正向结构测试，分别要求 planner、group、summary 的合法 intent/factRefs 选择能被服务端渲染为安全文案；实现前同样为 RED，因为三个 schema 尚不存在。
+
+### GREEN 与最终经验验证
+
+```text
+$ node --test test/report-evidence-payload.test.mjs test/dynamic-report.test.mjs
+tests 30; pass 30; fail 0
+
+$ npm test
+tests 136; pass 136; fail 0
+
+$ node --env-file=.env scripts/test-simulation.mjs
+四柱: 年:丙子 月:丙申 日:丁亥 时:乙巳
+日主: 丁·火
+六阶段 pipeline 完整输出
+动态报告校验: 六段文本已绑定本次四柱排盘事实，共 10110 个中文字符
+Markdown 报告校验: 逐段证据报告共 4886 个中文字符
+exit 0
+
+$ node --check lib/agent/ai-service.js
+$ node --check lib/agent/multi-agent-pipeline.js
+$ node --check api/ai-report.js
+$ git diff --check
+全部 exit 0
+```
+
+源码扫描确认生产文件中不存在 `Array.from({ length: 5 })`、`Math.max(12, facts.length)`、`% facts.length`、`slice(0, 12)`、`REPORT_AUDIT_LENSES`，也不存在“固定补足/循环扩写/长度填充/静态填充”哨兵。工作范围仅包含 `lib/agent/ai-service.js`、两份报告证据测试与本证据报告；未修改 auth、plan 或其他无关文件，未跟踪计划文档保持原样。
