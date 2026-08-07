@@ -26,3 +26,11 @@ test('六阶段服务端推演在界面中以明确阶段标签呈现', () => {
   assert.match(appJs, /6-Stage/);
   assert.doesNotMatch(appHtml, /20 位命理 Agent/);
 });
+
+test('阶段进度仅由服务端阶段事件推进，并为当前步骤显示思考动画', () => {
+  assert.match(appJs, /type === 'phase_start'/);
+  assert.match(appJs, /type === 'phase_done'/);
+  assert.match(appJs, /思考中\.\.\./);
+  assert.match(appCss, /\.pipeline-stage\.running \.pipeline-stage-status::before/);
+  assert.match(appCss, /@keyframes pipeline-spin/);
+});

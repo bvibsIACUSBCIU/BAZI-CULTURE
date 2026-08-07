@@ -97,6 +97,124 @@ test("writer 服务失败时返回诚实、短小、动态的降级报告并上�
   assert.doesNotMatch(result, /逐项|事实编号|至少保留两种替代解释/u);
 });
 
+test("writer 允许年份出现在 Markdown 标题，但仍校验正文的年度断言", async () => {
+  const evidencePayload = buildEvidence();
+  const markdown = `# 2026年职业选择解读
+
+## 直接回答
+
+当前更适合比较岗位的自主空间与协作方式，不把标题年份当作已经计算的年度事件。〔依据：八字·日主；八字·五行分布〕
+
+## 边界说明
+
+本轮没有计算流年或年度事件，因此不能给出“今年一定走哪步运”的结论，也不能确认 2026 年一定升职或收入增长。〔依据：八字·日主〕
+
+## 行动建议
+
+用两周真实任务记录完成质量与恢复成本，再比较具体岗位。`;
+
+  const result = await callReportWriter({
+    profile: { name: "测试" },
+    question: "我应该选择什么类型的工作？",
+    evidencePayload,
+    apiKey: "test-key",
+    fetchImpl: async () => ({ ok: true, json: async () => ({ choices: [{ message: { content: markdown } }] }) }),
+  });
+
+  assert.equal(result, markdown);
+});
+
+test("writer 在初稿越过年度边界时请求一次合规修订并采用修订稿", async () => {
+  const evidencePayload = buildEvidence();
+  const invalidMarkdown = `# 2026年职业选择解读
+
+## 直接回答
+
+2026年将升职。〔依据：八字·日主〕
+
+## 结构解释
+
+日主丙火可作为观察工作节奏的起点。〔依据：八字·日主〕
+
+## 行动建议
+
+记录真实任务的完成质量。`;
+  const compliantMarkdown = `# 职业选择解读
+
+## 直接回答
+
+应比较岗位的自主空间与协作方式，不把命盘当作职业结果保证。〔依据：八字·日主；八字·五行分布〕
+
+## 结构解释
+
+日主丙火与火元素偏多提示分析应关注节奏和恢复成本。〔依据：八字·日主；八字·五行分布〕
+
+## 行动建议
+
+用两周真实任务记录完成质量、反馈速度与恢复成本。`;
+  let requestCount = 0;
+
+  const result = await callReportWriter({
+    profile: { name: "测试" },
+    question: "我应该选择什么类型的工作？",
+    evidencePayload,
+    apiKey: "test-key",
+    fetchImpl: async () => {
+      requestCount += 1;
+      const content = requestCount === 1 ? invalidMarkdown : compliantMarkdown;
+      return { ok: true, json: async () => ({ choices: [{ message: { content } }] }) };
+    },
+  });
+
+  assert.equal(requestCount, 2);
+  assert.equal(result, compliantMarkdown);
+});
+
+test("writer 对纠偏稿中的单条年度断言做边界替换后保留完整报告", async () => {
+  const evidencePayload = buildEvidence();
+  const firstMarkdown = `# 职业选择解读
+
+## 直接回答
+
+2026年将升职。〔依据：八字·日主〕
+
+## 结构解释
+
+日主丙火提示应观察工作节奏。〔依据：八字·日主〕
+
+## 行动建议
+
+记录真实任务。`;
+  const secondMarkdown = `# 职业选择解读
+
+## 直接回答
+
+2026年事业会快速增长。〔依据：八字·日主〕
+
+## 结构解释
+
+日主丙火提示应观察工作节奏。〔依据：八字·日主〕
+
+## 行动建议
+
+记录真实任务。`;
+  let requestCount = 0;
+  const result = await callReportWriter({
+    profile: { name: "测试" },
+    question: "我应该选择什么类型的工作？",
+    evidencePayload,
+    apiKey: "test-key",
+    fetchImpl: async () => {
+      requestCount += 1;
+      return { ok: true, json: async () => ({ choices: [{ message: { content: requestCount === 1 ? firstMarkdown : secondMarkdown } }] }) };
+    },
+  });
+
+  assert.equal(requestCount, 2);
+  assert.match(result, /无法确认|未计算/u);
+  assert.doesNotMatch(result, /2026年事业会快速增长/u);
+});
+
 test("6-Stage 集成链路采用 AI 可读报告并返回正常服务状态", async () => {
   const report = `# 职业发展解读
 
@@ -139,12 +257,15 @@ test("6-Stage 集成链路采用 AI 可读报告并返回正常服务状态", as
     return { ok: true, json: async () => ({ choices: [{ message: { content } }] }) };
   };
 
+  const events = [];
   const result = await run6StagePipeline({
     profile: { name: "测试", date: "1996-08-18", time: "09:30", timeKnown: true, gender: "男" },
     question: "我应该选择什么类型的工作？",
     fetchImpl,
     apiKey: "test-key",
     year: 2026,
+    stageDelayMs: 0,
+    onEvent: (event) => events.push(event),
   });
 
   assert.equal(result.report, report);
@@ -153,4 +274,16 @@ test("6-Stage 集成链路采用 AI 可读报告并返回正常服务状态", as
   assert.equal(result.evidencePayload.calculationScope.ziwei.available, true);
   assert.equal(result.evidencePayload.calculationScope.qimen.available, true);
   assert.doesNotMatch(result.report, /\[bazi\.|evidence-selection-v1/u);
+  assert.deepEqual(
+    events.filter((event) => event.type === "phase_start" || event.type === "phase_done")
+      .map((event) => `${event.type}:${event.stage}`),
+    [
+      "phase_start:0", "phase_done:0",
+      "phase_start:1", "phase_done:1",
+      "phase_start:2", "phase_done:2",
+      "phase_start:3", "phase_done:3",
+      "phase_start:4", "phase_done:4",
+      "phase_start:5", "phase_done:5",
+    ],
+  );
 });

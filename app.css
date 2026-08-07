@@ -1745,6 +1745,21 @@ body {
 .pipeline-stage.running { border-color: var(--border-gold); color: var(--text-gold); }
 .pipeline-stage.done { border-color: rgba(76, 175, 80, 0.35); color: var(--text-primary); }
 .pipeline-stage-status { color: var(--text-muted); white-space: nowrap; }
+.pipeline-stage.running .pipeline-stage-status::before {
+    content: '';
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-right: 7px;
+    border: 2px solid rgba(212, 168, 94, 0.3);
+    border-top-color: var(--text-gold);
+    border-radius: 50%;
+    vertical-align: -2px;
+    animation: pipeline-spin 0.8s linear infinite;
+}
+@keyframes pipeline-spin {
+    to { transform: rotate(360deg); }
+}
 .report-chart-evidence {
     display: block;
     width: calc(100% - 24px);

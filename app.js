@@ -1338,7 +1338,9 @@ function updatePipelineStage(stepsDiv, index, state) {
     if (!stage) return;
     stage.className = `pipeline-stage ${state}`;
     const status = stage.querySelector('.pipeline-stage-status');
-    if (status) status.textContent = state === 'done' ? '已确认' : '进行中';
+    if (status) {
+        status.textContent = state === 'done' ? '已确认' : state === 'running' ? '思考中...' : '等待服务端事件';
+    }
 }
 
 function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
@@ -1347,14 +1349,19 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
     if (type === 'session_start') {
         if (headerTitle) headerTitle.textContent = `正在为「${event.profileName || activeProfile?.name}」进行 6-Stage 命理分析...`;
         renderPipelineStages(stepsDiv);
-        updatePipelineStage(stepsDiv, 0, 'done');
+    }
+
+    else if (type === 'phase_start') {
+        updatePipelineStage(stepsDiv, event.stage, 'running');
+    }
+
+    else if (type === 'phase_done') {
+        updatePipelineStage(stepsDiv, event.stage, 'done');
     }
 
     else if (type === 'plan') {
         if (headerTitle) headerTitle.textContent = `6-Stage Pipeline 分析规划中...`;
         if (stepsDiv) {
-            updatePipelineStage(stepsDiv, 1, 'done');
-            updatePipelineStage(stepsDiv, 2, 'running');
             (event.topics || []).forEach(t => {
                 (t.groups || []).forEach(g => {
                     const groupId = `${t.topic}_${g.group_title.slice(0, 10)}`;
@@ -1414,8 +1421,6 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
 
     else if (type === 'report_start') {
         if (headerTitle) headerTitle.textContent = `撰写全盘 Markdown 运势报告...`;
-        updatePipelineStage(stepsDiv, 2, 'done');
-        updatePipelineStage(stepsDiv, 3, 'running');
         if (DOM.reportContent) DOM.reportContent.innerHTML = '<em>正在生成运势报告正文...</em>';
         switchTab('tab-report');
     }
@@ -1438,8 +1443,6 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
     }
 
     else if (type === 'report_done') {
-        updatePipelineStage(stepsDiv, 3, 'done');
-        updatePipelineStage(stepsDiv, 4, 'running');
         if (event.markdown) {
             currentReport = event.markdown;
             const parseFn = window.marked?.parse || window.marked || ((s) => s.replace(/\n/g, '<br>'));
@@ -1451,7 +1454,6 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
     }
 
     else if (type === 'summary_delta') {
-        updatePipelineStage(stepsDiv, 4, 'running');
         if (conclusionEl) {
             conclusionEl.style.display = 'block';
             const inner = conclusionEl.querySelector('.conclusion-text');
@@ -1472,8 +1474,6 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
     }
 
     else if (type === 'recommend') {
-        updatePipelineStage(stepsDiv, 4, 'done');
-        updatePipelineStage(stepsDiv, 5, 'done');
         if (conclusionEl && Array.isArray(event.questions) && event.questions.length > 0) {
             const chipsHtml = event.questions.map(q => `<button class="recommend-chip-btn" style="margin: 4px; padding: 6px 12px; background: rgba(226, 183, 20, 0.15); border: 1px solid rgba(226, 183, 20, 0.4); border-radius: 16px; color: #e2b714; font-size: 13px; cursor: pointer;" onclick="document.getElementById('chat-input').value='${q}';">${q}</button>`).join('');
             const container = document.createElement('div');
