@@ -2,8 +2,14 @@ import { defaultAuthService } from '../lib/runtime/auth-service.js';
 import { defaultProfileService } from '../lib/runtime/profile-service.js';
 import { defaultSessionHistoryService } from '../lib/runtime/session-history-service.js';
 import { run6StagePipeline } from '../lib/agent/multi-agent-pipeline.js';
+import { authRequiredResponse, requireAuth } from '../lib/http/auth-context.js';
 
-export async function handleChatRequest(req) {
+export async function handleChatRequest(req, { env, runPipeline = run6StagePipeline } = {}) {
+  if (env?.DB && env?.AUTH_KV) return handleCloudflareChatRequest(req, { env, runPipeline });
+  return handleLegacyChatRequest(req);
+}
+
+async function handleLegacyChatRequest(req) {
   if (req.method !== 'POST') {
     return new Response('Method Not Allowed', { status: 405 });
   }
@@ -111,6 +117,100 @@ export async function handleChatRequest(req) {
       'Connection': 'keep-alive'
     }
   });
+}
+
+async function handleCloudflareChatRequest(req, { env, runPipeline }) {
+  if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
+  const auth = await requireAuth(req, env);
+  if (!auth) return authRequiredResponse();
+  const body = await req.json().catch(() => null);
+  if (!body) return json({ error: 'INVALID_JSON' }, 400);
+  const question = String(body.question || '').trim();
+  const requestId = String(body.requestId || crypto.randomUUID()).trim();
+  const profile = await auth.repositories.profiles.findById(auth.userId, body.profileId);
+  if (!profile) return json({ error: 'PROFILE_NOT_FOUND' }, 404);
+
+  const existing = await auth.repositories.conversations.findByRequestId(auth.userId, requestId);
+  if (existing) {
+    const report = await auth.repositories.reports.findByConversation(auth.userId, existing.id);
+    return streamCompletedConversation(existing, report, 0);
+  }
+
+  try {
+    await auth.repositories.credits.recordOnce({
+      userId: auth.userId,
+      amount: -10,
+      reason: 'chat',
+      idempotencyKey: requestId,
+    });
+    const conversation = await auth.repositories.conversations.create(auth.userId, {
+      profileId: profile.id,
+      requestId,
+      title: question ? `解答: ${question.slice(0, 12)}...` : '八字运势解读',
+      question,
+      topic: 'overview',
+    });
+    return streamPipelineConversation({ conversation, profile, question, previousReport: body.previousReport || null, runPipeline, repositories: auth.repositories, userId: auth.userId });
+  } catch (error) {
+    const status = error.code === 'INSUFFICIENT_CREDITS' ? 402 : error.code === 'PROFILE_NOT_FOUND' ? 404 : 400;
+    return json({ error: error.code || 'CHAT_ERROR' }, status);
+  }
+}
+
+function streamPipelineConversation({ conversation, profile, question, previousReport, runPipeline, repositories, userId }) {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const sendEvent = (data) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+      sendEvent({ type: 'session_start', sessionId: conversation.id, profileName: profile.name });
+      const startTime = Date.now();
+      try {
+        const result = await runPipeline({ profile, question, previousReport, onEvent: sendEvent });
+        const report = await repositories.reports.complete(userId, conversation.id, {
+          summary: result.summary || '',
+          reportMarkdown: result.report || '',
+          chartSummary: result.chartSummary || '',
+          chart: result.chart || {},
+          topic: result.topics?.[0]?.topic || 'overview',
+        });
+        sendEvent({ type: 'evidence', evidencePayload: result.evidencePayload });
+        sendEvent({ type: 'conclusion', text: report.summary || '解析已完成，参阅右侧报告。', serviceDegraded: result.service?.degraded === true });
+        sendEvent({ type: 'report', markdown: report.reportMarkdown });
+        sendEvent({ type: 'session_end', duration: Date.now() - startTime, creditsUsed: 10, serviceDegraded: result.service?.degraded === true });
+      } catch (error) {
+        await repositories.reports.fail(userId, conversation.id);
+        sendEvent({ type: 'error', message: error.message });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+  return new Response(stream, { headers: sseHeaders() });
+}
+
+function streamCompletedConversation(conversation, report, creditsUsed) {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      const send = (data) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+      send({ type: 'session_start', sessionId: conversation.id });
+      if (report) {
+        send({ type: 'conclusion', text: report.summary || '解析已完成，参阅右侧报告。', serviceDegraded: false });
+        send({ type: 'report', markdown: report.reportMarkdown });
+      }
+      send({ type: 'session_end', duration: 0, creditsUsed, replayed: true, serviceDegraded: false });
+      controller.close();
+    },
+  });
+  return new Response(stream, { headers: sseHeaders() });
+}
+
+function sseHeaders() {
+  return { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' };
+}
+
+function json(data, status) {
+  return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
 export default handleChatRequest;

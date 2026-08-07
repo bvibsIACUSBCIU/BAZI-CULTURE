@@ -98,6 +98,7 @@ test("writer 服务失败时仍返回按命盘和问题生成的完整报告", a
   assert.ok((result.match(/[\p{Script=Han}]/gu) || []).length <= 1800);
   assert.doesNotMatch(result, /\[bazi\.|ziwei\.placement|qimen\./u);
   assert.doesNotMatch(result, /AI 解读服务|暂未生成/u);
+  assert.match(result, /〔依据：[^〕]+〕/u);
 });
 
 test("writer 允许年份出现在 Markdown 标题，但仍校验正文的年度断言", async () => {

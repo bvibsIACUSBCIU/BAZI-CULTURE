@@ -121,7 +121,18 @@ async function handleCloudflareSessionHistoryRequest(req, env) {
 }
 
 async function cloudSessionList(auth) {
-  const sessions = await auth.repositories.conversations.list(auth.userId);
+  const conversations = await auth.repositories.conversations.list(auth.userId);
+  const profiles = await auth.repositories.profiles.list(auth.userId);
+  const sessions = await Promise.all(conversations.map(async (conversation) => {
+    const report = await auth.repositories.reports.findByConversation(auth.userId, conversation.id);
+    return {
+      ...conversation,
+      profileName: profiles.find((profile) => profile.id === conversation.profileId)?.name || '命主',
+      summary: report?.summary || '',
+      reportMarkdown: report?.reportMarkdown || '',
+      chartSummary: report?.chartSummary || '',
+    };
+  }));
   return createJsonResponse({
     ok: true,
     success: true,
