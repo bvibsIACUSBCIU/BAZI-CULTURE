@@ -24,3 +24,15 @@ test('Worker exposes health and protects authenticated routes with production se
   assert.equal(health.headers.get('x-frame-options'), 'DENY');
   assert.equal(me.headers.get('access-control-allow-origin'), null);
 });
+
+test('Worker preserves public chart API behavior while routing through the same security boundary', async () => {
+  const response = await worker.fetch(new Request('https://app.example.test/api/report', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ consent: false }),
+  }), env, {});
+
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).code, 'CONSENT_REQUIRED');
+  assert.match(response.headers.get('content-security-policy'), /default-src 'self'/);
+});

@@ -4,6 +4,11 @@ import handleSessionHistoryRequest from '../api/session-history.js';
 import handlePreferencesRequest from '../api/preferences.js';
 import { handleChatRequest } from '../api/chat.js';
 import { handleQuotaRequest } from '../api/quota.js';
+import reportFunction from '../functions/api/report.js';
+import aiReportFunction from '../functions/api/ai-report.js';
+import ziweiFunction from '../functions/api/ziwei.js';
+import qimenFunction from '../functions/api/qimen.js';
+import eventsFunction from '../functions/api/events.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -27,6 +32,14 @@ async function route(request, env) {
   if (url.pathname === '/api/preferences') return handlePreferencesRequest(request, { env });
   if (url.pathname === '/api/quota') return handleQuotaRequest(request, { env });
   if (url.pathname === '/api/chat') return handleChatRequest(request, { env });
+  const publicHandler = {
+    '/api/report': reportFunction,
+    '/api/ai-report': aiReportFunction,
+    '/api/ziwei': ziweiFunction,
+    '/api/qimen': qimenFunction,
+    '/api/events': eventsFunction,
+  }[url.pathname];
+  if (publicHandler) return publicHandler.fetch(request, env);
   return json({ ok: false, error: 'NOT_FOUND' }, 404);
 }
 
