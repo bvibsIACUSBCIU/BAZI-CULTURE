@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { handleChatRequest } from '../api/chat.js';
+import { handleChatRequest, handleGuestChatRequest } from '../api/chat.js';
 import handleSessionHistoryRequest from '../api/session-history.js';
 import { createRepositories } from '../lib/cloudflare/repositories/index.js';
 import { createSessionService } from '../lib/auth/session-service.js';
@@ -14,6 +14,7 @@ const WALLET = `0x${'3'.repeat(40)}`;
 function createHarness() {
   const db = createD1TestDatabase();
   db.exec(readFileSync(new URL('../migrations/0001_wallet_account.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../migrations/0002_daily_checkins.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../migrations/0003_threaded_conversation_versions.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../migrations/0004_conversation_turn_requests.sql', import.meta.url), 'utf8'));
   const repositories = createRepositories(db);
@@ -78,6 +79,39 @@ test('authenticated chat persists one dynamic report and debits credits once per
   assert.equal(sessionsList[0].reportMarkdown, '# 事业报告\n本报告由本次实际排盘与事业问题生成。');
   assert.equal(await repositories.credits.getBalance(user.id), 90);
   assert.equal(await repositories.credits.countByIdempotencyKey(user.id, 'chat-1'), 1);
+});
+
+test('guest chat streams the pipeline without creating any persistent records', async (t) => {
+  const { db, env } = createHarness();
+  t.after(() => db.close());
+  const response = await handleGuestChatRequest(request('/api/guest/chat', {
+    method: 'POST',
+    body: {
+      profile: { id: 'guest-profile', name: '访客命主', date: '1994-03-08', time: '08:00', gender: 'female', timeKnown: true },
+      question: '如何推进事业',
+    },
+  }), { env, runPipeline });
+  const events = await readEvents(response);
+
+  assert.equal(response.status, 200);
+  assert.ok(events.some((event) => event.type === 'report'));
+  for (const table of ['users', 'profiles', 'conversations', 'conversation_messages', 'reports', 'auth_sessions', 'credit_ledger', 'daily_checkins']) {
+    const row = await db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).first();
+    assert.equal(Number(row.count), 0, `${table} should remain empty for guests`);
+  }
+});
+
+test('guest chat rejects an incomplete profile before running the pipeline', async (t) => {
+  const { db, env } = createHarness();
+  t.after(() => db.close());
+  let pipelineCalled = false;
+  const response = await handleGuestChatRequest(request('/api/guest/chat', {
+    method: 'POST', body: { profile: { name: '缺少生日' }, question: '测试' },
+  }), { env, runPipeline: async () => { pipelineCalled = true; return runPipeline({}); } });
+
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error, 'INVALID_GUEST_PROFILE');
+  assert.equal(pipelineCalled, false);
 });
 
 test('a second question appends transcript messages and creates report version 2 in one owned thread', async (t) => {

@@ -9,6 +9,54 @@ export async function handleChatRequest(req, { env, runPipeline = run6StagePipel
   return handleLegacyChatRequest(req);
 }
 
+export async function handleGuestChatRequest(req, { runPipeline = run6StagePipeline } = {}) {
+  if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
+  const body = await req.json().catch(() => null);
+  const profile = normalizeGuestProfile(body?.profile);
+  if (!profile) return json({ error: 'INVALID_GUEST_PROFILE' }, 400);
+
+  const question = String(body?.question || '').trim();
+  const previousReport = typeof body?.previousReport === 'string' ? body.previousReport : null;
+  const sessionId = `guest-${crypto.randomUUID()}`;
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const sendEvent = (data) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+      sendEvent({ type: 'session_start', sessionId, conversationId: sessionId, profileName: profile.name });
+      const startedAt = Date.now();
+      try {
+        const result = await runPipeline({ profile, question, previousReport, onEvent: sendEvent });
+        sendEvent({ type: 'evidence', evidencePayload: result.evidencePayload });
+        sendEvent({ type: 'conclusion', text: result.summary || '解析已完成，参阅右侧报告。', conversationId: sessionId, serviceDegraded: result.service?.degraded === true });
+        sendEvent({ type: 'report', markdown: result.report || '', conversationId: sessionId, reportVersion: 1 });
+        sendEvent({ type: 'session_end', duration: Date.now() - startedAt, creditsUsed: 0, conversationId: sessionId, reportVersion: 1, serviceDegraded: result.service?.degraded === true });
+      } catch (error) {
+        console.error('Guest 6-Stage Pipeline execution error:', error);
+        sendEvent({ type: 'error', message: error.message });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+  return new Response(stream, { headers: sseHeaders() });
+}
+
+function normalizeGuestProfile(input) {
+  if (!input || typeof input !== 'object') return null;
+  const name = String(input.name || '').trim();
+  const date = String(input.date || '').trim();
+  if (!name || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  return {
+    id: typeof input.id === 'string' ? input.id : 'guest-profile',
+    name: name.slice(0, 80),
+    date,
+    time: /^\d{2}:\d{2}$/.test(String(input.time || '')) ? String(input.time) : '12:00',
+    gender: input.gender === 'female' ? 'female' : 'male',
+    timeKnown: input.timeKnown !== false,
+    birthplace: String(input.birthplace || '').trim().slice(0, 120),
+  };
+}
+
 async function handleLegacyChatRequest(req) {
   if (req.method !== 'POST') {
     return new Response('Method Not Allowed', { status: 405 });

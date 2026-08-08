@@ -2,7 +2,7 @@ import { handleAuthRequest } from '../api/auth.js';
 import { handleProfileRequest } from '../api/profile.js';
 import handleSessionHistoryRequest from '../api/session-history.js';
 import handlePreferencesRequest from '../api/preferences.js';
-import { handleChatRequest } from '../api/chat.js';
+import { handleChatRequest, handleGuestChatRequest } from '../api/chat.js';
 import { handleQuotaRequest } from '../api/quota.js';
 import reportFunction from '../functions/api/report.js';
 import aiReportFunction from '../functions/api/ai-report.js';
@@ -32,6 +32,7 @@ async function route(request, env) {
   if (url.pathname === '/api/preferences') return handlePreferencesRequest(request, { env });
   if (url.pathname === '/api/quota') return handleQuotaRequest(request, { env });
   if (url.pathname === '/api/chat') return handleChatRequest(request, { env });
+  if (url.pathname === '/api/guest/chat') return handleGuestChatRequest(request);
   const publicHandler = {
     '/api/report': reportFunction,
     '/api/ai-report': aiReportFunction,
