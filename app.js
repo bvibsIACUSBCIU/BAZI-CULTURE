@@ -1,5 +1,5 @@
-import { restoreOwnedConversation } from './lib/frontend/conversation-restore.js';
-import { sanitizeReportHtml } from './lib/frontend/report-sanitizer.js';
+import { restoreOwnedConversation } from './lib/frontend/conversation-restore.js?v=20260809.2';
+import { sanitizeReportHtml } from './lib/frontend/report-sanitizer.js?v=20260809.2';
 
 // ─── 服务端 6-Stage 推演进度（仅呈现 SSE 已确认的阶段） ─────────────────────────
 const SIX_STAGE_LABELS = [
