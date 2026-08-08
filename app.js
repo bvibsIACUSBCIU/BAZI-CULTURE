@@ -10,6 +10,9 @@ let selectedAuthWallet = null;
 let activeProfile = null;
 let profiles = [];
 let currentReport = '';
+let activeConversationId = null;
+let activeReportVersions = [];
+let selectedReportVersion = null;
 let isThinking = false;
 let editingProfileId = null;
 let savedSessions = [];
@@ -128,6 +131,7 @@ function initDOM() {
     DOM.qimenMetaPills         = $('qimen-meta-pills');
     DOM.reportContent          = $('report-content');
     DOM.reportChartEvidence    = $('report-chart-evidence');
+    DOM.reportVersionSelector  = $('report-version-selector');
     DOM.copyReportBtn          = $('copy-report-btn');
     DOM.exportPdfBtn           = $('export-pdf-btn');
     DOM.shareBtn               = $('share-btn');
@@ -280,12 +284,9 @@ function setupEventListeners() {
     });
 
     // 新建对话
-    DOM.newChatBtn?.addEventListener('click', () => {
-        if (DOM.messageList) {
-            DOM.messageList.innerHTML = '';
-            DOM.messageList.style.display = 'none';
-        }
-        if (DOM.waitingState) DOM.waitingState.style.display = 'flex';
+    DOM.newChatBtn?.addEventListener('click', resetConversationThread);
+    DOM.reportVersionSelector?.addEventListener('change', () => {
+        renderReportVersions(activeReportVersions, DOM.reportVersionSelector.value);
     });
     DOM.reportChartEvidence?.addEventListener('click', () => switchTab('tab-bazi'));
 
@@ -486,6 +487,7 @@ async function clearAuthenticatedState() {
     activeProfile = null;
     profiles = [];
     savedSessions = [];
+    resetConversationThread();
     selectedAuthWallet = null;
     localStorage.removeItem('bazi_wallet');
     document.querySelectorAll('#wallet-btn, #wallet-btn-mobile, .wallet-btn').forEach(btn => {
@@ -1212,37 +1214,120 @@ async function toggleSessionBookmark(sessionId) {
     } catch (_) {}
 }
 
-function loadSessionDetail(sessionId) {
+async function loadSessionDetail(sessionId) {
     const s = savedSessions.find(x => x.id === sessionId);
     if (!s) return;
 
-    if (DOM.waitingState) DOM.waitingState.style.display = 'none';
-    if (DOM.messageList) {
-        DOM.messageList.style.display = 'flex';
-        DOM.messageList.innerHTML = '';
-        
-        appendUserMsg(s.question || s.title);
-        
-        const agentMsgId = `agent-msg-hist-${Date.now()}`;
-        appendAgentMsg(agentMsgId);
-        
-        const agentCardEl = $(agentMsgId);
-        const headerTitle = agentCardEl?.querySelector('.agent-msg-title');
-        const conclusionEl = agentCardEl?.querySelector('.conclusion-card');
-        
-        if (headerTitle) headerTitle.textContent = `历史对话 · 命盘分析记录【${s.profileName || '命主'}】`;
-        if (conclusionEl) {
-            conclusionEl.style.display = 'block';
-            conclusionEl.innerHTML = `<div style="font-size: 14px; line-height: 1.6; color: #eee;">${s.summary || '【运势概况】解析已完成，参阅右侧运势报告。'}</div>`;
-        }
+    let detail = null;
+    try {
+        detail = await fetchApi(`/api/session-history?sessionId=${encodeURIComponent(sessionId)}`);
+    } catch (error) {
+        // Legacy local history has no threaded detail endpoint. Keep its single
+        // report usable while Cloudflare history remains the canonical path.
+        console.warn('Thread history detail unavailable:', error.message);
     }
-    
-    if (s.reportMarkdown && DOM.reportContent) {
-        currentReport = s.reportMarkdown;
+
+    activeConversationId = detail?.session?.id || s.id;
+    const messages = Array.isArray(detail?.messages) ? detail.messages : buildLegacyConversationMessages(s);
+    const reports = Array.isArray(detail?.reports) ? detail.reports : buildLegacyConversationReports(s);
+    renderConversationThread(messages);
+    renderReportVersions(reports);
+    if (!Array.isArray(detail?.reports) && s.reportMarkdown) renderReportEvidenceLink(s.chartSummary);
+    if (DOM.waitingState) DOM.waitingState.style.display = 'none';
+    if (reports.length > 0) switchTab('tab-report');
+}
+
+function buildLegacyConversationMessages(s) {
+    const messages = [];
+    const question = s.question || s.title;
+    if (question) messages.push({ role: 'user', content: question, sequence: 1 });
+    if (s.summary) messages.push({ role: 'assistant', content: s.summary, sequence: 2 });
+    return messages;
+}
+
+function buildLegacyConversationReports(s) {
+    if (!s.reportMarkdown) return [];
+    return [{
+        versionNumber: Number(s.versionNumber) || 1,
+        reportMarkdown: s.reportMarkdown,
+        summary: s.summary || '',
+        chartSummary: s.chartSummary || ''
+    }];
+}
+
+function renderConversationThread(messages = []) {
+    if (!DOM.messageList) return;
+    DOM.messageList.innerHTML = '';
+    DOM.messageList.style.display = messages.length > 0 ? 'flex' : 'none';
+    const ordered = [...messages].sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0));
+    ordered.forEach((message) => {
+        const content = typeof message?.content === 'string' ? message.content : '';
+        if (!content) return;
+        if (message.role === 'user') {
+            appendUserMsg(content);
+        } else if (message.role === 'assistant') {
+            appendAssistantMsg(content);
+        }
+    });
+    scrollChatToBottom();
+}
+
+function appendAssistantMsg(text) {
+    if (!DOM.messageList) return;
+    const row = document.createElement('div');
+    row.className = 'chat-message-row assistant-message-row';
+    const div = document.createElement('div');
+    div.className = 'msg-agent';
+    const header = document.createElement('div');
+    header.className = 'agent-msg-header';
+    const title = document.createElement('span');
+    title.className = 'agent-msg-title';
+    title.textContent = '分析完成';
+    header.appendChild(title);
+    const conclusion = document.createElement('div');
+    conclusion.className = 'conclusion-card';
+    conclusion.textContent = text;
+    div.append(header, conclusion);
+    row.append(createMessageAvatar('assistant'), div);
+    DOM.messageList.appendChild(row);
+}
+
+function getReportVersionNumber(report, fallback = 1) {
+    const value = Number(report?.versionNumber ?? report?.reportVersion ?? report?.version);
+    return Number.isInteger(value) && value > 0 ? value : fallback;
+}
+
+function renderReportVersions(reports = [], selectedVersion = null) {
+    activeReportVersions = [...reports]
+        .filter(report => report && typeof report.reportMarkdown === 'string')
+        .map((report, index) => ({ ...report, versionNumber: getReportVersionNumber(report, index + 1) }))
+        .sort((a, b) => a.versionNumber - b.versionNumber);
+    const selected = Number(selectedVersion);
+    const chosen = activeReportVersions.find(report => report.versionNumber === selected)
+        || activeReportVersions.at(-1)
+        || null;
+    selectedReportVersion = chosen?.versionNumber || null;
+    currentReport = chosen?.reportMarkdown || '';
+
+    if (DOM.reportVersionSelector) {
+        DOM.reportVersionSelector.innerHTML = '';
+        DOM.reportVersionSelector.hidden = activeReportVersions.length === 0;
+        activeReportVersions.forEach(report => {
+            const option = document.createElement('option');
+            option.value = String(report.versionNumber);
+            option.textContent = `报告版本 ${report.versionNumber}`;
+            option.selected = report.versionNumber === selectedReportVersion;
+            DOM.reportVersionSelector.appendChild(option);
+        });
+    }
+    if (chosen && DOM.reportContent) {
         const parseFn = window.marked?.parse || window.marked || ((str) => str.replace(/\n/g, '<br>'));
-        DOM.reportContent.innerHTML = typeof parseFn === 'function' ? parseFn(s.reportMarkdown) : s.reportMarkdown;
-        renderReportEvidenceLink(s.chartSummary);
-        switchTab('tab-report');
+        const html = typeof parseFn === 'function' ? parseFn(chosen.reportMarkdown) : chosen.reportMarkdown;
+        DOM.reportContent.innerHTML = html;
+        renderReportEvidenceLink(chosen.chartSummary || '');
+    } else if (DOM.reportContent) {
+        DOM.reportContent.innerHTML = '<p class="placeholder-text">暂无分析报告，请在中间聊天区发起命理推演生成深度解读。</p>';
+        if (DOM.reportChartEvidence) DOM.reportChartEvidence.hidden = true;
     }
 }
 
@@ -1253,6 +1338,19 @@ function renderReportEvidenceLink(chartSummary = '') {
     DOM.reportChartEvidence.textContent = chartSummary
         ? `依据：${chartSummary} · 查看当前确定命盘`
         : `依据：${profileName}的当前确定命盘 · 查看基础四柱`;
+}
+
+function resetConversationThread() {
+    activeConversationId = null;
+    activeReportVersions = [];
+    selectedReportVersion = null;
+    currentReport = '';
+    if (DOM.messageList) {
+        DOM.messageList.innerHTML = '';
+        DOM.messageList.style.display = 'none';
+    }
+    if (DOM.waitingState) DOM.waitingState.style.display = 'flex';
+    renderReportVersions([]);
 }
 
 async function addSessionToHistory(sessionData) {
@@ -1322,6 +1420,7 @@ async function sendMessage() {
                 question: text,
                 mode,
                 requestId: crypto.randomUUID(),
+                conversationId: activeConversationId,
                 previousReport: currentReport || null
             })
         });
@@ -1426,6 +1525,7 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
     const type = event.type || event.event;
 
     if (type === 'session_start') {
+        activeConversationId = event.sessionId || event.conversationId || activeConversationId;
         if (headerTitle) headerTitle.textContent = `正在为「${event.profileName || activeProfile?.name}」分析，请稍候`;
         if (stepsDiv) stepsDiv.innerHTML = '<div class="pipeline-stage-list"></div>';
     }
@@ -1483,15 +1583,22 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
         }
     }
 
-    else if (type === 'report_done') {
+    else if (type === 'report' || type === 'report_done') {
         if (event.markdown) {
             appendStageDetail(stepsDiv, 3, '完整解读已生成');
-            currentReport = event.markdown;
-            const parseFn = window.marked?.parse || window.marked || ((s) => s.replace(/\n/g, '<br>'));
-            const html = typeof parseFn === 'function' ? parseFn(event.markdown) : event.markdown;
-            const diffTag = event.diff ? `<div style="font-size: 12px; color: #888; margin-bottom: 12px; padding: 4px 8px; background: rgba(255,255,255,0.05); border-radius: 4px; display: inline-block;">‹ 版本 ${event.version} (新增 ${event.diff.added} 行, 删除 ${event.diff.removed} 行) ›</div>` : '';
-            if (DOM.reportContent) DOM.reportContent.innerHTML = diffTag + html;
-            renderReportEvidenceLink();
+            const reportVersion = getReportVersionNumber(event, activeReportVersions.length + 1);
+            const existing = activeReportVersions.find(report => report.versionNumber === reportVersion);
+            const nextReport = {
+                ...existing,
+                versionNumber: reportVersion,
+                reportMarkdown: event.markdown,
+                summary: event.summary || existing?.summary || '',
+                chartSummary: event.chartSummary || existing?.chartSummary || ''
+            };
+            const nextVersions = existing
+                ? activeReportVersions.map(report => report.versionNumber === reportVersion ? nextReport : report)
+                : [...activeReportVersions, nextReport];
+            renderReportVersions(nextVersions, reportVersion);
         }
     }
 

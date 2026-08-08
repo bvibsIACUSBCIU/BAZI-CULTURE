@@ -53,3 +53,25 @@ test('工作台核心静态资源使用发布版本参数，避免浏览器继�
   assert.match(appHtml, /href="app\.css\?v=[^"]+"/);
   assert.match(appHtml, /src="app\.js\?v=[^"]+"/);
 });
+
+test('前端续聊使用活跃会话并展示编号报告版本', () => {
+  assert.match(appJs, /activeConversationId/);
+  assert.match(appJs, /conversationId:\s*activeConversationId/);
+  assert.match(appJs, /function renderReportVersions/);
+  assert.match(appHtml, /id="report-version-selector"/);
+  assert.match(appCss, /\.report-version-selector/);
+});
+
+test('历史会话按服务端顺序恢复所有消息和报告版本', () => {
+  assert.match(appJs, /function renderConversationThread/);
+  assert.match(appJs, /detail\.messages/);
+  assert.match(appJs, /detail\.reports/);
+  assert.match(appJs, /session-history\?sessionId=/);
+});
+
+test('只有新建对话会重置活跃会话与报告版本', () => {
+  assert.match(appJs, /function resetConversationThread/);
+  assert.match(appJs, /activeConversationId\s*=\s*null/);
+  assert.match(appJs, /activeReportVersions\s*=\s*\[\]/);
+  assert.match(appJs, /DOM\.newChatBtn.*resetConversationThread/s);
+});

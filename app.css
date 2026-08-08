@@ -1855,3 +1855,26 @@ body {
     cursor: pointer;
 }
 .report-chart-evidence:hover { border-color: var(--border-gold-bright); }
+.report-version-control {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 12px 10px;
+    color: var(--text-muted);
+    font-size: 0.76rem;
+}
+.report-version-selector {
+    min-width: 132px;
+    padding: 7px 9px;
+    color: var(--text-primary);
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    font: inherit;
+    cursor: pointer;
+}
+.report-version-selector:focus-visible {
+    outline: 2px solid var(--border-gold-bright);
+    outline-offset: 2px;
+}
