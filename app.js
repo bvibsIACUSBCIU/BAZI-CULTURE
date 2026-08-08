@@ -16,6 +16,17 @@ let savedSessions = [];
 
 // API 端点多端口备用地址
 const BACKEND_HOSTS = [''];
+const CANONICAL_WORKSPACE_ORIGIN = 'https://bazi.hlabs.me';
+
+function redirectPagesPreviewToCanonicalWorkspace() {
+    const hostname = window.location.hostname;
+    const isPagesPreview = hostname === 'bazi-culture.pages.dev' || hostname.endsWith('.bazi-culture.pages.dev');
+    if (!isPagesPreview) return false;
+
+    const canonicalUrl = new URL(`${window.location.pathname}${window.location.search}${window.location.hash}`, CANONICAL_WORKSPACE_ORIGIN);
+    window.location.replace(canonicalUrl);
+    return true;
+}
 
 // ─── API 请求包装助手 ──────────────────────────────────────────────────────────
 async function fetchApi(path, options = {}) {
@@ -29,7 +40,7 @@ async function fetchApi(path, options = {}) {
                 if (contentType.includes("application/json")) {
                     return await res.json();
                 }
-                return res;
+                throw new Error(`API ${path} returned non-JSON content; open ${CANONICAL_WORKSPACE_ORIGIN} instead of a Pages preview URL.`);
             }
             if (res.status === 401) {
                 await clearAuthenticatedState();
@@ -128,6 +139,7 @@ function initDOM() {
 
 // ─── 初始化 ────────────────────────────────────────────────────────────────────
 function init() {
+    if (redirectPagesPreviewToCanonicalWorkspace()) return;
     initDOM();
     setupEventListeners();
     setupEthereumListeners();
@@ -431,9 +443,14 @@ async function submitWalletAuth(operation) {
         const wallet = await getCurrentSelectedWallet();
         const params = new URLSearchParams({ wallet, operation, username });
         const challengeData = await fetchApi(`/api/auth/challenge?${params}`);
+        // Cloudflare's secure challenge uses `message`; `challenge` remains only for the local legacy server.
+        const challengeMessage = challengeData?.message || challengeData?.challenge;
+        if (typeof challengeMessage !== 'string' || !challengeMessage.trim()) {
+            throw new Error('认证服务未返回有效签名内容。请使用正式工作台域名后重试。');
+        }
         // 仅在用户点击“注册”或“登录”后签名；签名目标必须仍是当前 MetaMask 账户。
         await getCurrentSelectedWallet();
-        const signature = await window.ethereum.request({ method: 'personal_sign', params: [challengeData.challenge, wallet] });
+        const signature = await window.ethereum.request({ method: 'personal_sign', params: [challengeMessage, wallet] });
         await getCurrentSelectedWallet();
         const authResult = await fetchApi(`/api/auth/${operation}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },

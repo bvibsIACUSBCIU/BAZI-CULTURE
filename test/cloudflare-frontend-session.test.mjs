@@ -18,3 +18,11 @@ test('frontend clears wallet-scoped state after a session failure or account cha
   assert.match(appJs, /res\.status === 401[\s\S]*?clearAuthenticatedState/);
   assert.match(appJs, /accountsChanged[\s\S]*?clearAuthenticatedState/);
 });
+
+test('frontend signs only a valid Cloudflare challenge message and redirects Pages previews to the canonical workspace', () => {
+  assert.match(appJs, /challengeData\?\.message \|\| challengeData\?\.challenge/);
+  assert.match(appJs, /typeof challengeMessage !== 'string'/);
+  assert.match(appJs, /params: \[challengeMessage, wallet\]/);
+  assert.match(appJs, /bazi-culture\.pages\.dev/);
+  assert.match(appJs, /location\.replace\(canonicalUrl\)/);
+});
