@@ -1,3 +1,6 @@
+import { restoreOwnedConversation } from './lib/frontend/conversation-restore.js';
+import { sanitizeReportHtml } from './lib/frontend/report-sanitizer.js';
+
 // ─── 服务端 6-Stage 推演进度（仅呈现 SSE 已确认的阶段） ─────────────────────────
 const SIX_STAGE_LABELS = [
     '命盘事实校验', '专题规划', '证据推演', '动态报告', '摘要收敛', '追问建议'
@@ -20,6 +23,7 @@ let savedSessions = [];
 // API 端点多端口备用地址
 const BACKEND_HOSTS = [''];
 const CANONICAL_WORKSPACE_ORIGIN = 'https://bazi.hlabs.me';
+const ACTIVE_CONVERSATION_STORAGE_KEY = 'liangyi_active_conversation';
 
 function redirectPagesPreviewToCanonicalWorkspace() {
     const hostname = window.location.hostname;
@@ -526,7 +530,8 @@ async function bootstrapAuthenticatedAccount() {
         btn.textContent = short;
     });
     
-    await Promise.all([loadProfiles(), loadHistory()]);
+    await Promise.all([loadProfiles(), loadHistory({ restoreActive: false })]);
+    await restoreConversationFromHistory();
 }
 
 async function setWallet(address) {
@@ -1122,7 +1127,7 @@ async function safeFetchQimenApi(profile) {
 }
 
 // ─── 历史对话加载 & 收藏管理 ──────────────────────────────────────────────────
-async function loadHistory() {
+async function loadHistory({ restoreActive = true } = {}) {
     if (!currentWallet) {
         savedSessions = [];
         renderHistoryUI();
@@ -1136,6 +1141,21 @@ async function loadHistory() {
     }
 
     renderHistoryUI();
+    if (restoreActive) await restoreConversationFromHistory();
+}
+
+async function restoreConversationFromHistory() {
+    const persistedConversationId = localStorage.getItem(ACTIVE_CONVERSATION_STORAGE_KEY);
+    try {
+        const detail = await restoreOwnedConversation({
+            sessions: savedSessions,
+            persistedConversationId,
+            loadDetail: (sessionId) => fetchApi(`/api/session-history?sessionId=${encodeURIComponent(sessionId)}`)
+        });
+        if (detail) applyConversationDetail(detail);
+    } catch (error) {
+        console.warn('Thread restore unavailable:', error.message);
+    }
 }
 
 function renderHistoryUI() {
@@ -1164,17 +1184,29 @@ function renderHistoryUI() {
 
 function renderSessionItemHtml(s) {
     const timeStr = s.timestamp ? new Date(s.timestamp).toLocaleDateString() : '';
+    const id = escapeHtml(s.id || '');
+    const title = escapeHtml(s.title || '未命名对话');
+    const profileName = escapeHtml(s.profileName || '命主');
     return `
-    <div class="chat-item-wrapper" data-id="${s.id}" title="${s.title}">
+    <div class="chat-item-wrapper" data-id="${id}" title="${title}">
         <div class="chat-item-info">
-            <span class="chat-item-title">${s.title}</span>
-            <span class="chat-item-sub">${s.profileName || '命主'} ${timeStr ? '· ' + timeStr : ''}</span>
+            <span class="chat-item-title">${title}</span>
+            <span class="chat-item-sub">${profileName} ${timeStr ? '· ' + escapeHtml(timeStr) : ''}</span>
         </div>
-        <button class="chat-item-star ${s.bookmarked ? 'active' : ''}" data-id="${s.id}" title="${s.bookmarked ? '取消收藏' : '收藏'}">
+        <button class="chat-item-star ${s.bookmarked ? 'active' : ''}" data-id="${id}" title="${s.bookmarked ? '取消收藏' : '收藏'}">
             ${s.bookmarked ? '★' : '☆'}
         </button>
     </div>
     `;
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 function bindSessionItemEvents(container) {
@@ -1227,7 +1259,15 @@ async function loadSessionDetail(sessionId) {
         console.warn('Thread history detail unavailable:', error.message);
     }
 
-    activeConversationId = detail?.session?.id || s.id;
+    applyConversationDetail(detail, s);
+}
+
+function applyConversationDetail(detail, legacySession = null) {
+    const session = detail?.session || legacySession;
+    if (!session?.id) return;
+    activeConversationId = session.id;
+    localStorage.setItem(ACTIVE_CONVERSATION_STORAGE_KEY, activeConversationId);
+    const s = legacySession || savedSessions.find(item => item.id === session.id) || session;
     const messages = Array.isArray(detail?.messages) ? detail.messages : buildLegacyConversationMessages(s);
     const reports = Array.isArray(detail?.reports) ? detail.reports : buildLegacyConversationReports(s);
     renderConversationThread(messages);
@@ -1321,9 +1361,7 @@ function renderReportVersions(reports = [], selectedVersion = null) {
         });
     }
     if (chosen && DOM.reportContent) {
-        const parseFn = window.marked?.parse || window.marked || ((str) => str.replace(/\n/g, '<br>'));
-        const html = typeof parseFn === 'function' ? parseFn(chosen.reportMarkdown) : chosen.reportMarkdown;
-        DOM.reportContent.innerHTML = html;
+        DOM.reportContent.innerHTML = renderSanitizedReportMarkdown(chosen.reportMarkdown);
         renderReportEvidenceLink(chosen.chartSummary || '');
     } else if (DOM.reportContent) {
         DOM.reportContent.innerHTML = '<p class="placeholder-text">暂无分析报告，请在中间聊天区发起命理推演生成深度解读。</p>';
@@ -1346,8 +1384,16 @@ function getCanonicalReportVersion(event) {
 function renderPipelineReportPreview(markdown) {
     if (!markdown || activeReportVersions.length > 0 || !DOM.reportContent) return;
     currentReport = markdown;
-    const parseFn = window.marked?.parse || window.marked || ((str) => str.replace(/\n/g, '<br>'));
-    DOM.reportContent.innerHTML = typeof parseFn === 'function' ? parseFn(markdown) : markdown;
+    DOM.reportContent.innerHTML = renderSanitizedReportMarkdown(markdown);
+}
+
+function renderSanitizedReportMarkdown(markdown) {
+    const source = String(markdown || '');
+    const parseFn = window.marked?.parse || window.marked;
+    const parsed = typeof parseFn === 'function'
+        ? parseFn(source)
+        : escapeHtml(source).replace(/\n/g, '<br>');
+    return sanitizeReportHtml(parsed);
 }
 
 function renderReportEvidenceLink(chartSummary = '') {
@@ -1361,6 +1407,7 @@ function renderReportEvidenceLink(chartSummary = '') {
 
 function resetConversationThread() {
     activeConversationId = null;
+    localStorage.removeItem(ACTIVE_CONVERSATION_STORAGE_KEY);
     activeReportVersions = [];
     selectedReportVersion = null;
     currentReport = '';
@@ -1545,6 +1592,7 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
 
     if (type === 'session_start') {
         activeConversationId = event.sessionId || event.conversationId || activeConversationId;
+        if (activeConversationId) localStorage.setItem(ACTIVE_CONVERSATION_STORAGE_KEY, activeConversationId);
         if (headerTitle) headerTitle.textContent = `正在为「${event.profileName || activeProfile?.name}」分析，请稍候`;
         if (stepsDiv) stepsDiv.innerHTML = '<div class="pipeline-stage-list"></div>';
     }
@@ -1581,7 +1629,7 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
     else if (type === 'report_start') {
         if (headerTitle) headerTitle.textContent = '正在整理完整解读';
         appendStageDetail(stepsDiv, 3, '开始整理完整解读');
-        if (DOM.reportContent) DOM.reportContent.innerHTML = '<em>正在生成运势报告正文...</em>';
+        if (DOM.reportContent) DOM.reportContent.textContent = '正在生成运势报告正文...';
         switchTab('tab-report');
     }
 
@@ -1589,16 +1637,18 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
         if (headerTitle) headerTitle.textContent = 'AI 专业解读暂未完整返回';
         if (conclusionEl) {
             conclusionEl.style.display = 'block';
-            conclusionEl.innerHTML = `<div class="service-degraded-notice" style="font-size: 13px; line-height: 1.6; color: #f3cf72; border: 1px solid rgba(226,183,20,.35); background: rgba(226,183,20,.08); border-radius: 8px; padding: 10px 12px;">${event.message || 'AI 专业解读服务暂不可用，当前仅展示简短盘面摘要。'}</div>`;
+            const notice = document.createElement('div');
+            notice.className = 'service-degraded-notice';
+            notice.style.cssText = 'font-size: 13px; line-height: 1.6; color: #f3cf72; border: 1px solid rgba(226,183,20,.35); background: rgba(226,183,20,.08); border-radius: 8px; padding: 10px 12px;';
+            notice.textContent = event.message || 'AI 专业解读服务暂不可用，当前仅展示简短盘面摘要。';
+            conclusionEl.replaceChildren(notice);
         }
     }
 
     else if (type === 'report_delta') {
         if (event.text_chunk && DOM.reportContent) {
-            if (DOM.reportContent.innerHTML.includes('正在生成运势报告正文')) {
-                DOM.reportContent.innerHTML = '';
-            }
-            DOM.reportContent.innerHTML += event.text_chunk.replace(/\n/g, '<br>');
+            agentMap.reportPreview = `${agentMap.reportPreview || ''}${String(event.text_chunk)}`;
+            DOM.reportContent.textContent = agentMap.reportPreview;
         }
     }
 
@@ -1665,10 +1715,22 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
     else if (type === 'recommend') {
         (event.questions || []).forEach(question => appendStageDetail(stepsDiv, 5, question));
         if (conclusionEl && Array.isArray(event.questions) && event.questions.length > 0) {
-            const chipsHtml = event.questions.map(q => `<button class="recommend-chip-btn" style="margin: 4px; padding: 6px 12px; background: rgba(226, 183, 20, 0.15); border: 1px solid rgba(226, 183, 20, 0.4); border-radius: 16px; color: #e2b714; font-size: 13px; cursor: pointer;" onclick="document.getElementById('chat-input').value='${q}';">${q}</button>`).join('');
             const container = document.createElement('div');
             container.style.marginTop = '12px';
-            container.innerHTML = `<div style="font-size: 12px; color: #888; margin-bottom: 6px;">为您推荐追问：</div>${chipsHtml}`;
+            const label = document.createElement('div');
+            label.style.cssText = 'font-size: 12px; color: #888; margin-bottom: 6px;';
+            label.textContent = '为您推荐追问：';
+            container.appendChild(label);
+            event.questions.forEach((question) => {
+                const button = document.createElement('button');
+                button.className = 'recommend-chip-btn';
+                button.style.cssText = 'margin: 4px; padding: 6px 12px; background: rgba(226, 183, 20, 0.15); border: 1px solid rgba(226, 183,20, 0.4); border-radius: 16px; color: #e2b714; font-size: 13px; cursor: pointer;';
+                button.textContent = String(question);
+                button.addEventListener('click', () => {
+                    if (DOM.chatInput) DOM.chatInput.value = String(question);
+                });
+                container.appendChild(button);
+            });
             conclusionEl.appendChild(container);
         }
     }

@@ -145,29 +145,42 @@ async function handleCloudflareChatRequest(req, { env, runPipeline }) {
     conversation = await auth.repositories.conversations.findById(auth.userId, body.conversationId);
     if (!conversation || conversation.profileId !== profile.id) return json({ error: 'SESSION_NOT_FOUND' }, 404);
   }
+  const latestPersistedReport = conversation
+    ? await auth.repositories.reportVersions.findLatest(auth.userId, conversation.id)
+    : null;
 
   try {
-    await auth.repositories.credits.recordOnce({
+    conversation = await auth.repositories.turns.start(auth.userId, {
+      conversationId: conversation?.id || null,
+      profileId: profile.id,
+      requestId,
+      question,
+      topic: 'overview',
+      title: question ? `解答: ${question.slice(0, 12)}...` : '八字运势解读',
       userId: auth.userId,
-      amount: -10,
-      reason: 'chat',
-      idempotencyKey: requestId,
+      creditAmount: -10,
+      creditReason: 'chat',
     });
-    conversation = conversation
-      ? await auth.repositories.conversations.appendTurn(auth.userId, conversation.id, {
-        profileId: profile.id, requestId, question, topic: 'overview',
-      })
-      : await auth.repositories.conversations.createForTurn(auth.userId, {
-        profileId: profile.id,
-        requestId,
-        title: question ? `解答: ${question.slice(0, 12)}...` : '八字运势解读',
-        question,
-        topic: 'overview',
-      });
-    await auth.repositories.turnRequests.create(auth.userId, conversation.id, requestId);
-    await auth.repositories.messages.append(auth.userId, conversation.id, 'user', question);
-    return streamPipelineConversation({ conversation, profile, question, previousReport: body.previousReport || null, runPipeline, repositories: auth.repositories, userId: auth.userId });
+    return streamPipelineConversation({
+      conversation,
+      profile,
+      question,
+      previousReport: latestPersistedReport?.reportMarkdown || null,
+      runPipeline,
+      repositories: auth.repositories,
+      userId: auth.userId,
+    });
   } catch (error) {
+    if (/UNIQUE constraint failed/u.test(String(error?.message || ''))) {
+      const racedReplay = await auth.repositories.turnRequests.findByRequestId(auth.userId, requestId);
+      if (racedReplay) {
+        const racedConversation = await auth.repositories.conversations.findById(auth.userId, racedReplay.conversationId);
+        const racedReport = racedReplay.reportVersionNumber === null
+          ? null
+          : await auth.repositories.reportVersions.findByVersion(auth.userId, racedReplay.conversationId, racedReplay.reportVersionNumber);
+        return streamCompletedConversation(racedConversation, racedReport, 0);
+      }
+    }
     const status = error.code === 'INSUFFICIENT_CREDITS' ? 402 : ['PROFILE_NOT_FOUND', 'PROFILE_MISMATCH', 'SESSION_NOT_FOUND'].includes(error.code) ? 404 : 400;
     return json({ error: error.code || 'CHAT_ERROR' }, status);
   }
@@ -183,21 +196,19 @@ function streamPipelineConversation({ conversation, profile, question, previousR
       try {
         const result = await runPipeline({ profile, question, previousReport, onEvent: sendEvent });
         const assistantMessage = result.summary || '解析已完成，参阅右侧报告。';
-        await repositories.messages.append(userId, conversation.id, 'assistant', assistantMessage);
-        const report = await repositories.reportVersions.complete(userId, conversation.id, {
+        const report = await repositories.turns.complete(userId, conversation.requestId, {
           summary: result.summary || '',
           reportMarkdown: result.report || '',
           chartSummary: result.chartSummary || '',
           chart: result.chart || {},
           topic: result.topics?.[0]?.topic || 'overview',
         });
-        await repositories.turnRequests.complete(userId, conversation.requestId, report.versionNumber);
         sendEvent({ type: 'evidence', evidencePayload: result.evidencePayload });
         sendEvent({ type: 'conclusion', text: assistantMessage, conversationId: conversation.id, reportVersion: report.versionNumber, serviceDegraded: result.service?.degraded === true });
         sendEvent({ type: 'report', markdown: report.reportMarkdown, conversationId: conversation.id, reportVersion: report.versionNumber });
         sendEvent({ type: 'session_end', duration: Date.now() - startTime, creditsUsed: 10, conversationId: conversation.id, reportVersion: report.versionNumber, serviceDegraded: result.service?.degraded === true });
       } catch (error) {
-        await repositories.reports.fail(userId, conversation.id);
+        await repositories.reports.fail(userId, conversation.id, conversation.requestId);
         sendEvent({ type: 'error', message: error.message });
       } finally {
         controller.close();
