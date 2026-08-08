@@ -15,7 +15,9 @@ function createHarness() {
   db.exec(readFileSync(new URL('../migrations/0001_wallet_account.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../migrations/0002_daily_checkins.sql', import.meta.url), 'utf8'));
   const repositories = createRepositories(db, { now: () => '2026-08-08T00:00:00.000Z' });
-  const sessions = createSessionService({ sessions: repositories.sessions, environment: 'production', now: () => Date.parse('2026-08-08T00:00:00.000Z') });
+  // The request path resolves sessions against the current clock, so issue the
+  // test cookie from that same clock instead of the repository fixture clock.
+  const sessions = createSessionService({ sessions: repositories.sessions, environment: 'production' });
   return {
     db,
     repositories,

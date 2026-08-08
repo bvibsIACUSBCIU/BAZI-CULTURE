@@ -1,6 +1,7 @@
 name = "liangyi-bazi-api"
 main = "src/worker.js"
 compatibility_date = "2026-08-08"
+compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
 [vars]
@@ -27,12 +28,47 @@ ENVIRONMENT = "preview"
 SESSION_TTL_SECONDS = "21600"
 SESSION_COOKIE_NAME = "liangyi_session"
 ALLOWED_ORIGIN = "https://preview.example.invalid"
+OPENAI_MODEL = "deepseek-v4-pro"
+OPENAI_FALLBACK_MODEL = "deepseek-v4-flash"
+OPENAI_BASE_URL = "https://www.getunikey.ai/v1"
+AI_PROVIDER = "openai-compatible"
+AI_TIMEOUT_MS = "120000"
+AI_DAILY_LIMIT = "200"
+KNOWLEDGE_BASE_URL = "https://bazi-knowledge-base.vercel.app"
+
+[[env.preview.d1_databases]]
+binding = "DB"
+database_name = "liangyi-bazi-preview"
+database_id = "37118150-5c83-4502-bea4-0ee3747e96fc"
+migrations_dir = "migrations"
+
+[[env.preview.kv_namespaces]]
+binding = "AUTH_KV"
+id = "c069cb9fb21b41acaa2d9cb780628833"
 
 [env.production]
 name = "liangyi-bazi-api"
+routes = [{ pattern = "bazi.hlabs.me/api/*", zone_name = "hlabs.me" }]
 
 [env.production.vars]
 ENVIRONMENT = "production"
 SESSION_TTL_SECONDS = "21600"
 SESSION_COOKIE_NAME = "liangyi_session"
-ALLOWED_ORIGIN = "https://example.invalid"
+ALLOWED_ORIGIN = "https://bazi.hlabs.me"
+OPENAI_MODEL = "deepseek-v4-pro"
+OPENAI_FALLBACK_MODEL = "deepseek-v4-flash"
+OPENAI_BASE_URL = "https://www.getunikey.ai/v1"
+AI_PROVIDER = "openai-compatible"
+AI_TIMEOUT_MS = "120000"
+AI_DAILY_LIMIT = "200"
+KNOWLEDGE_BASE_URL = "https://bazi-knowledge-base.vercel.app"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "liangyi-bazi-production"
+database_id = "e2d3f489-3d12-4980-9873-705e48e468ac"
+migrations_dir = "migrations"
+
+[[env.production.kv_namespaces]]
+binding = "AUTH_KV"
+id = "f05419fbbd694f4d889f223d99fc1c2c"

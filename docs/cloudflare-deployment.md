@@ -42,8 +42,14 @@ Set `ALLOWED_ORIGIN` to the final HTTPS Pages/custom-domain origin, not a wildca
 ```bash
 npm run cf:db:migrate:remote
 npm run cf:deploy
-npx wrangler pages deploy . --project-name liangyi-bazi
+pages_stage=$(mktemp -d /tmp/liangyi-pages.XXXXXX)
+cp -p index.html app.html systems.html ziwei.html qimen.html app.js app.css qimen-page.js ziwei-page.js system-page.css systems-workspace.css "$pages_stage/"
+npx wrangler --cwd "$pages_stage" pages deploy . --project-name bazi-culture --commit-dirty=true
 ```
+
+The API is served by the standalone Worker route. Deploy Pages from this clean
+static directory so Pages does not compile the repository's legacy
+`functions/` directory as a second API runtime.
 
 ## Production Checks
 
