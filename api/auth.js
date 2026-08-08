@@ -76,7 +76,7 @@ async function handleLegacyAuthRequest(req) {
       const wallet = url.searchParams.get('wallet');
       const operation = url.searchParams.get('operation');
       const username = url.searchParams.get('username');
-      if (!wallet || !operation || !username) {
+      if (!wallet || !operation || (operation !== 'authenticate' && !username)) {
         return createJsonResponse({ error: 'INVALID_CHALLENGE_REQUEST' }, 400);
       }
       const challengeData = defaultAuthService.generateChallenge(wallet, {
@@ -88,11 +88,12 @@ async function handleLegacyAuthRequest(req) {
     }
 
     // 2. POST /api/auth/register and /api/auth/login
-    const authOperation = path.endsWith('/register') ? 'register' : (path.endsWith('/login') ? 'login' : null);
+    const authOperation = path.endsWith('/authenticate') ? 'authenticate'
+      : (path.endsWith('/register') ? 'register' : (path.endsWith('/login') ? 'login' : null));
     if (authOperation && method === 'POST') {
       const { challengeId, wallet, signature, username } = body || {};
 
-      if (!challengeId || !wallet || !signature || !username) {
+      if (!challengeId || !wallet || !signature || (authOperation !== 'authenticate' && !username)) {
         return createJsonResponse({ error: `INVALID_${authOperation.toUpperCase()}_PAYLOAD` }, 400);
       }
 
@@ -105,9 +106,11 @@ async function handleLegacyAuthRequest(req) {
         return createJsonResponse({ error: 'SIGNATURE_VERIFICATION_FAILED' }, 401);
       }
 
-      const account = authOperation === 'register'
-        ? defaultAuthService.register(wallet, username, clientIp)
-        : defaultAuthService.login(wallet, username);
+      const account = authOperation === 'authenticate'
+        ? defaultAuthService.authenticate(wallet, clientIp)
+        : (authOperation === 'register'
+          ? defaultAuthService.register(wallet, username, clientIp)
+          : defaultAuthService.login(wallet, username));
       return createJsonResponse({
         success: true,
         ok: true,
@@ -188,7 +191,8 @@ async function handleCloudflareAuthRequest(req, env) {
       return createJsonResponse({ ok: true, success: true, ...challenge });
     }
 
-    const operation = path.endsWith('/register') ? 'register' : (path.endsWith('/login') ? 'login' : null);
+    const operation = path.endsWith('/authenticate') ? 'authenticate'
+      : (path.endsWith('/register') ? 'register' : (path.endsWith('/login') ? 'login' : null));
     if (operation && method === 'POST') {
       const { challengeId, wallet, signature, username } = body;
       if (!challengeId || !wallet || !signature) return createJsonResponse({ error: `INVALID_${operation.toUpperCase()}_PAYLOAD` }, 400);

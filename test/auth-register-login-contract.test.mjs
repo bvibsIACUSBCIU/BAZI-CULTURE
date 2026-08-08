@@ -26,7 +26,8 @@ async function jsonResponse(req) {
 }
 
 async function challengeFor({ wallet, operation, username, origin }) {
-  const query = new URLSearchParams({ wallet: wallet.address, operation, username });
+  const query = new URLSearchParams({ wallet: wallet.address, operation });
+  if (username !== undefined) query.set('username', username);
   const challenge = await jsonResponse(request(`http://api.example.test/api/auth/challenge?${query}`, { origin }));
   assert.equal(challenge.status, 200);
   return {
@@ -36,6 +37,21 @@ async function challengeFor({ wallet, operation, username, origin }) {
     signature: await wallet.signMessage(challenge.body.challenge)
   };
 }
+
+test('auth API authenticates a wallet without a username', async () => {
+  resetAuthState();
+  const wallet = Wallet.createRandom();
+  const origin = 'http://app.example.test';
+  const payload = await challengeFor({ wallet, operation: 'authenticate', origin });
+
+  const result = await jsonResponse(request('http://api.example.test/api/auth/authenticate', {
+    method: 'POST', origin, body: payload,
+  }));
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.account.walletAddress, wallet.address.toLowerCase());
+  assert.equal(result.body.account.username, null);
+});
 
 test('auth API registers a username and wallet only through a register-bound signature', async () => {
   resetAuthState();

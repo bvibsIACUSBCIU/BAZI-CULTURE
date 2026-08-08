@@ -136,3 +136,37 @@ test('Cloudflare auth endpoint authorizes /me from its signed session rather tha
   assert.equal(meResponse.status, 200);
   assert.equal((await meResponse.json()).account.walletAddress, wallet.address.toLowerCase());
 });
+
+test('Cloudflare wallet authentication creates once and grants welcome credit once without a username', async (t) => {
+  const { db, kv } = createHarness();
+  t.after(() => db.close());
+  const wallet = Wallet.createRandom();
+  const env = {
+    DB: db,
+    AUTH_KV: kv,
+    ENVIRONMENT: 'production',
+    ALLOWED_ORIGIN: ORIGIN,
+    SESSION_COOKIE_NAME: 'liangyi_session',
+    SESSION_TTL_SECONDS: '21600',
+  };
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const query = new URLSearchParams({ wallet: wallet.address, operation: 'authenticate' });
+    const challengeResponse = await handleAuthRequest(request(`/api/auth/challenge?${query}`), { env });
+    assert.equal(challengeResponse.status, 200);
+    const challenge = await challengeResponse.json();
+    const signature = await wallet.signMessage(challenge.message);
+    const authResponse = await handleAuthRequest(request('/api/auth/authenticate', {
+      method: 'POST', body: { wallet: wallet.address, challengeId: challenge.challengeId, signature },
+    }), { env });
+    assert.equal(authResponse.status, 200);
+    const payload = await authResponse.json();
+    assert.equal(payload.account.walletAddress, wallet.address.toLowerCase());
+    assert.equal(payload.account.username, null);
+  }
+
+  const users = await db.prepare('SELECT COUNT(*) AS count FROM users WHERE wallet_address = ?').bind(wallet.address.toLowerCase()).first();
+  const welcomeCredits = await db.prepare("SELECT COUNT(*) AS count FROM credit_ledger WHERE reason = 'welcome'").first();
+  assert.equal(users.count, 1);
+  assert.equal(welcomeCredits.count, 1);
+});
