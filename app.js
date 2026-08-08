@@ -1630,7 +1630,6 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
 
     else if (type === 'report_done') {
         if (event.markdown) {
-            appendStageDetail(stepsDiv, 3, '完整解读已生成');
             renderPipelineReportPreview(event.markdown);
         }
     }

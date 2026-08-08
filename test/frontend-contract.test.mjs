@@ -88,3 +88,9 @@ test('report_done 仅保留推演预览，不得篡改不可变报告版本', ()
   assert.ok(reportDoneBranch, 'report_done should have a dedicated SSE branch');
   assert.doesNotMatch(reportDoneBranch, /activeReportVersions|renderReportVersions|getReportVersionNumber/);
 });
+
+test('非权威 report_done 预览不重复写入完成步骤详情', () => {
+  const reportDoneBranch = appJs.match(/else if \(type === 'report_done'\) \{([\s\S]*?)\n\s*}\n\n\s*else if \(type === 'summary_delta'/)?.[1] || '';
+  assert.ok(reportDoneBranch, 'report_done should have a dedicated SSE branch');
+  assert.doesNotMatch(reportDoneBranch, /appendStageDetail/);
+});
