@@ -66,6 +66,13 @@ test('profile and conversation APIs ignore wallet parameters and enforce session
     method: 'POST', cookie: ownerCookie,
     body: { action: 'add', wallet: OTHER_WALLET, profileId: profile.id, title: '事业', question: '如何推进事业', topic: 'career' },
   }), { env });
+  const ownerConversation = await ownerConversationResponse.clone().json();
+  const ownerDetail = await handleSessionHistoryRequest(request(`/api/session-history?sessionId=${ownerConversation.session.id}`, {
+    cookie: ownerCookie,
+  }), { env });
+  const foreignDetail = await handleSessionHistoryRequest(request(`/api/session-history?sessionId=${ownerConversation.session.id}`, {
+    cookie: otherCookie,
+  }), { env });
   const ownerProfiles = await handleProfileRequest(request('/api/profile', { cookie: ownerCookie }), { env });
   const otherProfiles = await handleProfileRequest(request('/api/profile', { cookie: otherCookie }), { env });
   const ownerList = await handleSessionHistoryRequest(request('/api/session-history', { cookie: ownerCookie }), { env });
@@ -74,6 +81,9 @@ test('profile and conversation APIs ignore wallet parameters and enforce session
   assert.equal(createdProfileResponse.status, 200);
   assert.equal(foreignDelete.status, 404);
   assert.equal(ownerConversationResponse.status, 200);
+  assert.equal(ownerDetail.status, 200);
+  assert.equal((await ownerDetail.json()).session.id, ownerConversation.session.id);
+  assert.equal(foreignDetail.status, 404);
   assert.equal((await ownerProfiles.json()).profiles.length, 1);
   assert.equal((await otherProfiles.json()).profiles.length, 0);
   assert.equal((await ownerList.json()).sessions.length, 1);

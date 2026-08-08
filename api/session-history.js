@@ -89,7 +89,17 @@ async function handleCloudflareSessionHistoryRequest(req, env) {
   const url = new URL(req.url || 'http://localhost/api/session-history', 'http://localhost');
   const body = method === 'POST' || method === 'DELETE' ? await readJson(req) : {};
   try {
-    if (method === 'GET') return cloudSessionList(auth);
+    if (method === 'GET') {
+      const sessionId = url.searchParams.get('sessionId');
+      if (!sessionId) return cloudSessionList(auth);
+      const session = await auth.repositories.conversations.findById(auth.userId, sessionId);
+      if (!session) return createJsonResponse({ ok: false, success: false, error: 'SESSION_NOT_FOUND' }, 404);
+      const [messages, reports] = await Promise.all([
+        auth.repositories.messages.list(auth.userId, session.id),
+        auth.repositories.reports.listByConversation(auth.userId, session.id),
+      ]);
+      return createJsonResponse({ ok: true, success: true, session, messages, reports });
+    }
     if (method === 'POST') {
       const action = body.action || (url.pathname.endsWith('/bookmark') ? 'bookmark' : 'add');
       if (action === 'bookmark') {

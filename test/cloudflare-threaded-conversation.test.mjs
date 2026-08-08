@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
+import handleSessionHistoryRequest from '../api/session-history.js';
 import { createRepositories } from '../lib/cloudflare/repositories/index.js';
+import { createSessionService } from '../lib/auth/session-service.js';
 import { createD1TestDatabase } from './helpers/d1-test-db.mjs';
 
 function createHarness() {
@@ -115,6 +117,60 @@ test('thread repositories append ordered messages and immutable report versions 
   ]);
   assert.equal((await db.prepare('SELECT COUNT(*) AS count FROM reports').first()).count, 0);
   assert.equal(await repositories.conversations.findById('foreign-user', thread.id), null);
+});
+
+test('thread detail returns ordered messages and every report version only to its owner', async (t) => {
+  const { db } = createHarness();
+  t.after(() => db.close());
+  await db.exec(readFileSync(new URL('../migrations/0003_threaded_conversation_versions.sql', import.meta.url), 'utf8'));
+  const repositories = createRepositories(db, { createId: createSequentialId() });
+  const sessions = createSessionService({ sessions: repositories.sessions, environment: 'production' });
+  const owner = await repositories.users.findOrCreate(`0x${'3'.repeat(40)}`);
+  const foreign = await repositories.users.findOrCreate(`0x${'4'.repeat(40)}`);
+  const profile = await repositories.profiles.create(owner.id, {
+    name: '青木', date: '1994-03-08', time: '08:00', gender: 'female', timeKnown: true,
+  });
+  const thread = await repositories.conversations.createForTurn(owner.id, {
+    profileId: profile.id, requestId: 'detail-turn-1', question: '第一问', title: '第一问', topic: 'overview',
+  });
+  await repositories.messages.append(owner.id, thread.id, 'user', '第一问');
+  await repositories.messages.append(owner.id, thread.id, 'assistant', '第一答');
+  await repositories.reportVersions.complete(owner.id, thread.id, {
+    summary: '第一答', reportMarkdown: '报告一', chartSummary: '命盘一', chart: { dayMaster: '甲' }, topic: 'career',
+  });
+  await repositories.conversations.appendTurn(owner.id, thread.id, {
+    profileId: profile.id, requestId: 'detail-turn-2', question: '第二问', topic: 'wealth',
+  });
+  await repositories.messages.append(owner.id, thread.id, 'user', '第二问');
+  await repositories.messages.append(owner.id, thread.id, 'assistant', '第二答');
+  await repositories.reportVersions.complete(owner.id, thread.id, {
+    summary: '第二答', reportMarkdown: '报告二', chartSummary: '命盘二', chart: { dayMaster: '乙' }, topic: 'wealth',
+  });
+
+  const origin = 'https://app.example.test';
+  const issueCookie = async (userId) => (await sessions.issue({ userId })).cookie.split(';')[0];
+  const env = {
+    DB: db,
+    AUTH_KV: { get: async () => null, put: async () => {}, delete: async () => {} },
+    ENVIRONMENT: 'production',
+    ALLOWED_ORIGIN: origin,
+    SESSION_COOKIE_NAME: 'liangyi_session',
+    SESSION_TTL_SECONDS: '21600',
+  };
+  const request = (cookie) => new Request(`${origin}/api/session-history?sessionId=${thread.id}`, {
+    headers: { origin, cookie },
+  });
+
+  const ownerResponse = await handleSessionHistoryRequest(request(await issueCookie(owner.id)), { env });
+  const ownerBody = await ownerResponse.json();
+  assert.equal(ownerResponse.status, 200);
+  assert.equal(ownerBody.session.id, thread.id);
+  assert.deepEqual(ownerBody.messages.map((message) => message.sequence), [1, 2, 3, 4]);
+  assert.deepEqual(ownerBody.reports.map((report) => report.versionNumber), [1, 2]);
+
+  const foreignResponse = await handleSessionHistoryRequest(request(await issueCookie(foreign.id)), { env });
+  assert.equal(foreignResponse.status, 404);
+  assert.equal((await foreignResponse.json()).error, 'SESSION_NOT_FOUND');
 });
 
 test('appending the first real turn gives a placeholder conversation its question title', async (t) => {
