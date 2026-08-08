@@ -48,3 +48,8 @@ test('聊天消息使用两仪八卦头像和抽象用户头像', () => {
   assert.match(appCss, /\.assistant-avatar/);
   assert.match(appCss, /\.user-avatar/);
 });
+
+test('工作台核心静态资源使用发布版本参数，避免浏览器继续执行旧缓存', () => {
+  assert.match(appHtml, /href="app\.css\?v=[^"]+"/);
+  assert.match(appHtml, /src="app\.js\?v=[^"]+"/);
+});
