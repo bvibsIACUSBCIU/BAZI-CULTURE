@@ -1331,6 +1331,25 @@ function renderReportVersions(reports = [], selectedVersion = null) {
     }
 }
 
+function getLatestImmutableReportMarkdown() {
+    const latestReport = activeReportVersions.at(-1);
+    return typeof latestReport?.reportMarkdown === 'string' && latestReport.reportMarkdown
+        ? latestReport.reportMarkdown
+        : null;
+}
+
+function getCanonicalReportVersion(event) {
+    const version = Number(event?.reportVersion);
+    return Number.isInteger(version) && version > 0 ? version : null;
+}
+
+function renderPipelineReportPreview(markdown) {
+    if (!markdown || activeReportVersions.length > 0 || !DOM.reportContent) return;
+    currentReport = markdown;
+    const parseFn = window.marked?.parse || window.marked || ((str) => str.replace(/\n/g, '<br>'));
+    DOM.reportContent.innerHTML = typeof parseFn === 'function' ? parseFn(markdown) : markdown;
+}
+
 function renderReportEvidenceLink(chartSummary = '') {
     if (!DOM.reportChartEvidence) return;
     const profileName = activeProfile?.name || '当前命主';
@@ -1421,7 +1440,7 @@ async function sendMessage() {
                 mode,
                 requestId: crypto.randomUUID(),
                 conversationId: activeConversationId,
-                previousReport: currentReport || null
+                previousReport: getLatestImmutableReportMarkdown()
             })
         });
 
@@ -1583,10 +1602,10 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
         }
     }
 
-    else if (type === 'report' || type === 'report_done') {
+    else if (type === 'report' && getCanonicalReportVersion(event)) {
         if (event.markdown) {
             appendStageDetail(stepsDiv, 3, '完整解读已生成');
-            const reportVersion = getReportVersionNumber(event, activeReportVersions.length + 1);
+            const reportVersion = getCanonicalReportVersion(event);
             const existing = activeReportVersions.find(report => report.versionNumber === reportVersion);
             const nextReport = {
                 ...existing,
@@ -1599,6 +1618,20 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
                 ? activeReportVersions.map(report => report.versionNumber === reportVersion ? nextReport : report)
                 : [...activeReportVersions, nextReport];
             renderReportVersions(nextVersions, reportVersion);
+        }
+    }
+
+    else if (type === 'report') {
+        if (event.markdown) {
+            appendStageDetail(stepsDiv, 3, '完整解读已生成');
+            renderPipelineReportPreview(event.markdown);
+        }
+    }
+
+    else if (type === 'report_done') {
+        if (event.markdown) {
+            appendStageDetail(stepsDiv, 3, '完整解读已生成');
+            renderPipelineReportPreview(event.markdown);
         }
     }
 

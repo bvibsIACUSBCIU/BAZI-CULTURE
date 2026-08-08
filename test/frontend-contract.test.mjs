@@ -75,3 +75,16 @@ test('只有新建对话会重置活跃会话与报告版本', () => {
   assert.match(appJs, /activeReportVersions\s*=\s*\[\]/);
   assert.match(appJs, /DOM\.newChatBtn.*resetConversationThread/s);
 });
+
+test('续聊上下文始终使用最新不可变报告，切换展示版本不改变下一问上下文', () => {
+  assert.match(appJs, /function getLatestImmutableReportMarkdown\(\)\s*\{[\s\S]*activeReportVersions\.at\(-1\)[\s\S]*reportMarkdown[\s\S]*\}/);
+  assert.match(appJs, /previousReport:\s*getLatestImmutableReportMarkdown\(\)/);
+  assert.doesNotMatch(appJs, /previousReport:\s*currentReport/);
+});
+
+test('report_done 仅保留推演预览，不得篡改不可变报告版本', () => {
+  assert.match(appJs, /else if \(type === 'report' && getCanonicalReportVersion\(event\)\) \{/);
+  const reportDoneBranch = appJs.match(/else if \(type === 'report_done'\) \{([\s\S]*?)\n\s*}\n\n\s*else if \(type === 'summary_delta'/)?.[1] || '';
+  assert.ok(reportDoneBranch, 'report_done should have a dedicated SSE branch');
+  assert.doesNotMatch(reportDoneBranch, /activeReportVersions|renderReportVersions|getReportVersionNumber/);
+});
