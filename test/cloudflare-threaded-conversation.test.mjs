@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
+import { createRepositories } from '../lib/cloudflare/repositories/index.js';
 import { createD1TestDatabase } from './helpers/d1-test-db.mjs';
 
 function createHarness() {
@@ -51,3 +52,45 @@ test('thread migration keeps the legacy reports writer available and snapshots i
     /UNIQUE constraint failed: report_versions\.conversation_id, report_versions\.version_number/,
   );
 });
+
+test('thread repositories append ordered messages and immutable report versions for the owner', async (t) => {
+  const { db } = createHarness();
+  t.after(() => db.close());
+  await db.exec(readFileSync(new URL('../migrations/0003_threaded_conversation_versions.sql', import.meta.url), 'utf8'));
+  const repositories = createRepositories(db, { createId: createSequentialId() });
+  const user = await repositories.users.findOrCreate(`0x${'2'.repeat(40)}`);
+  const profile = await repositories.profiles.create(user.id, {
+    name: '青木', date: '1994-03-08', time: '08:00', gender: 'female', timeKnown: true,
+  });
+
+  const thread = await repositories.conversations.createForTurn(user.id, {
+    profileId: profile.id, requestId: 'turn-1', question: '第一问', title: '第一问', topic: 'overview',
+  });
+  await repositories.messages.append(user.id, thread.id, 'user', '第一问');
+  await repositories.messages.append(user.id, thread.id, 'assistant', '第一答');
+  await repositories.reportVersions.complete(user.id, thread.id, {
+    summary: '第一答', reportMarkdown: '报告一', chartSummary: '命盘一', chart: { dayMaster: '甲' }, topic: 'career',
+  });
+  await repositories.conversations.appendTurn(user.id, thread.id, {
+    profileId: profile.id, requestId: 'turn-2', question: '第二问', topic: 'overview',
+  });
+  await repositories.messages.append(user.id, thread.id, 'user', '第二问');
+  await repositories.messages.append(user.id, thread.id, 'assistant', '第二答');
+  await repositories.reportVersions.complete(user.id, thread.id, {
+    summary: '第二答', reportMarkdown: '报告二', chartSummary: '命盘二', chart: { dayMaster: '乙' }, topic: 'wealth',
+  });
+
+  assert.deepEqual((await repositories.messages.list(user.id, thread.id)).map((message) => [message.sequence, message.role, message.content]), [
+    [1, 'user', '第一问'], [2, 'assistant', '第一答'], [3, 'user', '第二问'], [4, 'assistant', '第二答'],
+  ]);
+  assert.deepEqual((await repositories.reports.listByConversation(user.id, thread.id)).map((report) => [report.versionNumber, report.reportMarkdown]), [
+    [1, '报告一'], [2, '报告二'],
+  ]);
+  assert.equal((await db.prepare('SELECT COUNT(*) AS count FROM reports').first()).count, 0);
+  assert.equal(await repositories.conversations.findById('foreign-user', thread.id), null);
+});
+
+function createSequentialId() {
+  let number = 0;
+  return (prefix) => `${prefix}-${++number}`;
+}

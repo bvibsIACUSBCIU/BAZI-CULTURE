@@ -127,13 +127,19 @@ async function handleCloudflareChatRequest(req, { env, runPipeline }) {
   if (!body) return json({ error: 'INVALID_JSON' }, 400);
   const question = String(body.question || '').trim();
   const requestId = String(body.requestId || crypto.randomUUID()).trim();
-  const profile = await auth.repositories.profiles.findById(auth.userId, body.profileId);
-  if (!profile) return json({ error: 'PROFILE_NOT_FOUND' }, 404);
 
   const existing = await auth.repositories.conversations.findByRequestId(auth.userId, requestId);
   if (existing) {
-    const report = await auth.repositories.reports.findByConversation(auth.userId, existing.id);
+    const report = await auth.repositories.reportVersions.findLatest(auth.userId, existing.id);
     return streamCompletedConversation(existing, report, 0);
+  }
+
+  const profile = await auth.repositories.profiles.findById(auth.userId, body.profileId);
+  if (!profile) return json({ error: 'PROFILE_NOT_FOUND' }, 404);
+  let conversation = null;
+  if (body.conversationId) {
+    conversation = await auth.repositories.conversations.findById(auth.userId, body.conversationId);
+    if (!conversation || conversation.profileId !== profile.id) return json({ error: 'SESSION_NOT_FOUND' }, 404);
   }
 
   try {
@@ -143,16 +149,21 @@ async function handleCloudflareChatRequest(req, { env, runPipeline }) {
       reason: 'chat',
       idempotencyKey: requestId,
     });
-    const conversation = await auth.repositories.conversations.create(auth.userId, {
-      profileId: profile.id,
-      requestId,
-      title: question ? `解答: ${question.slice(0, 12)}...` : '八字运势解读',
-      question,
-      topic: 'overview',
-    });
+    conversation = conversation
+      ? await auth.repositories.conversations.appendTurn(auth.userId, conversation.id, {
+        profileId: profile.id, requestId, question, topic: 'overview',
+      })
+      : await auth.repositories.conversations.createForTurn(auth.userId, {
+        profileId: profile.id,
+        requestId,
+        title: question ? `解答: ${question.slice(0, 12)}...` : '八字运势解读',
+        question,
+        topic: 'overview',
+      });
+    await auth.repositories.messages.append(auth.userId, conversation.id, 'user', question);
     return streamPipelineConversation({ conversation, profile, question, previousReport: body.previousReport || null, runPipeline, repositories: auth.repositories, userId: auth.userId });
   } catch (error) {
-    const status = error.code === 'INSUFFICIENT_CREDITS' ? 402 : error.code === 'PROFILE_NOT_FOUND' ? 404 : 400;
+    const status = error.code === 'INSUFFICIENT_CREDITS' ? 402 : ['PROFILE_NOT_FOUND', 'PROFILE_MISMATCH', 'SESSION_NOT_FOUND'].includes(error.code) ? 404 : 400;
     return json({ error: error.code || 'CHAT_ERROR' }, status);
   }
 }
@@ -162,11 +173,13 @@ function streamPipelineConversation({ conversation, profile, question, previousR
   const stream = new ReadableStream({
     async start(controller) {
       const sendEvent = (data) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
-      sendEvent({ type: 'session_start', sessionId: conversation.id, profileName: profile.name });
+      sendEvent({ type: 'session_start', sessionId: conversation.id, conversationId: conversation.id, reportVersion: null, profileName: profile.name });
       const startTime = Date.now();
       try {
         const result = await runPipeline({ profile, question, previousReport, onEvent: sendEvent });
-        const report = await repositories.reports.complete(userId, conversation.id, {
+        const assistantMessage = result.summary || '解析已完成，参阅右侧报告。';
+        await repositories.messages.append(userId, conversation.id, 'assistant', assistantMessage);
+        const report = await repositories.reportVersions.complete(userId, conversation.id, {
           summary: result.summary || '',
           reportMarkdown: result.report || '',
           chartSummary: result.chartSummary || '',
@@ -174,9 +187,9 @@ function streamPipelineConversation({ conversation, profile, question, previousR
           topic: result.topics?.[0]?.topic || 'overview',
         });
         sendEvent({ type: 'evidence', evidencePayload: result.evidencePayload });
-        sendEvent({ type: 'conclusion', text: report.summary || '解析已完成，参阅右侧报告。', serviceDegraded: result.service?.degraded === true });
-        sendEvent({ type: 'report', markdown: report.reportMarkdown });
-        sendEvent({ type: 'session_end', duration: Date.now() - startTime, creditsUsed: 10, serviceDegraded: result.service?.degraded === true });
+        sendEvent({ type: 'conclusion', text: assistantMessage, conversationId: conversation.id, reportVersion: report.versionNumber, serviceDegraded: result.service?.degraded === true });
+        sendEvent({ type: 'report', markdown: report.reportMarkdown, conversationId: conversation.id, reportVersion: report.versionNumber });
+        sendEvent({ type: 'session_end', duration: Date.now() - startTime, creditsUsed: 10, conversationId: conversation.id, reportVersion: report.versionNumber, serviceDegraded: result.service?.degraded === true });
       } catch (error) {
         await repositories.reports.fail(userId, conversation.id);
         sendEvent({ type: 'error', message: error.message });
@@ -193,12 +206,12 @@ function streamCompletedConversation(conversation, report, creditsUsed) {
   const stream = new ReadableStream({
     start(controller) {
       const send = (data) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
-      send({ type: 'session_start', sessionId: conversation.id });
+      send({ type: 'session_start', sessionId: conversation.id, conversationId: conversation.id, reportVersion: report?.versionNumber || null });
       if (report) {
-        send({ type: 'conclusion', text: report.summary || '解析已完成，参阅右侧报告。', serviceDegraded: false });
-        send({ type: 'report', markdown: report.reportMarkdown });
+        send({ type: 'conclusion', text: report.summary || '解析已完成，参阅右侧报告。', conversationId: conversation.id, reportVersion: report.versionNumber, serviceDegraded: false });
+        send({ type: 'report', markdown: report.reportMarkdown, conversationId: conversation.id, reportVersion: report.versionNumber });
       }
-      send({ type: 'session_end', duration: 0, creditsUsed, replayed: true, serviceDegraded: false });
+      send({ type: 'session_end', duration: 0, creditsUsed, replayed: true, conversationId: conversation.id, reportVersion: report?.versionNumber || null, serviceDegraded: false });
       controller.close();
     },
   });
