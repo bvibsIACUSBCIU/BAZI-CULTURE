@@ -1,6 +1,4 @@
-ALTER TABLE reports RENAME TO reports_legacy;
-
-CREATE TABLE reports (
+CREATE TABLE report_versions (
   id TEXT PRIMARY KEY,
   conversation_id TEXT NOT NULL REFERENCES conversations(id),
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -15,7 +13,7 @@ CREATE TABLE reports (
   UNIQUE (conversation_id, version_number)
 );
 
-INSERT INTO reports (
+INSERT INTO report_versions (
   id,
   conversation_id,
   user_id,
@@ -40,9 +38,7 @@ SELECT
   completed_at,
   created_at,
   updated_at
-FROM reports_legacy;
+FROM reports;
 
-DROP TABLE reports_legacy;
-
-CREATE INDEX reports_by_conversation_version ON reports(conversation_id, version_number DESC);
-CREATE INDEX reports_by_user_updated ON reports(user_id, updated_at DESC);
+CREATE INDEX report_versions_by_conversation ON report_versions(conversation_id, version_number DESC);
+CREATE INDEX report_versions_by_user_updated ON report_versions(user_id, updated_at DESC);

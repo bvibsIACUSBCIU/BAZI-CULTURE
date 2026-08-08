@@ -10,7 +10,7 @@ function createHarness() {
   return { db };
 }
 
-test('thread migration allows versioned reports while preserving a legacy report as version 1', async (t) => {
+test('thread migration keeps the legacy reports writer available and snapshots it as version 1', async (t) => {
   const { db } = createHarness();
   t.after(() => db.close());
   await db.exec(`
@@ -24,24 +24,30 @@ test('thread migration allows versioned reports while preserving a legacy report
 
   await db.exec(readFileSync(new URL('../migrations/0003_threaded_conversation_versions.sql', import.meta.url), 'utf8'));
 
-  const columns = await db.prepare('PRAGMA table_info(reports)').all();
+  await db.prepare(`
+    INSERT INTO reports (id, conversation_id, user_id, summary, report_markdown, chart_summary, chart_json, completed_at, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(conversation_id) DO UPDATE SET report_markdown = excluded.report_markdown
+  `).bind('report-latest', 'conversation-1', 'user-1', '新摘要', '最新报告', '旧命盘', '{}', null, '2026-08-08T00:00:00.000Z', '2026-08-08T00:00:00.000Z').run();
+
+  const columns = await db.prepare('PRAGMA table_info(report_versions)').all();
   assert.ok(columns.results.some((column) => column.name === 'version_number'));
 
-  const legacyReport = await db.prepare('SELECT version_number, summary, report_markdown FROM reports WHERE id = ?').bind('report-1').first();
+  const legacyReport = await db.prepare('SELECT version_number, summary, report_markdown FROM report_versions WHERE id = ?').bind('report-1').first();
   assert.equal(legacyReport.version_number, 1);
   assert.equal(legacyReport.summary, '旧摘要');
   assert.equal(legacyReport.report_markdown, '旧报告');
 
   await db.prepare(`
-    INSERT INTO reports (id, conversation_id, user_id, version_number, created_at, updated_at)
+    INSERT INTO report_versions (id, conversation_id, user_id, version_number, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?)
   `).bind('report-2', 'conversation-1', 'user-1', 2, '2026-08-08T00:00:00.000Z', '2026-08-08T00:00:00.000Z').run();
 
   await assert.rejects(
     db.prepare(`
-      INSERT INTO reports (id, conversation_id, user_id, version_number, created_at, updated_at)
+      INSERT INTO report_versions (id, conversation_id, user_id, version_number, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?)
     `).bind('report-duplicate', 'conversation-1', 'user-1', 2, '2026-08-08T00:00:00.000Z', '2026-08-08T00:00:00.000Z').run(),
-    /UNIQUE constraint failed: reports\.conversation_id, reports\.version_number/,
+    /UNIQUE constraint failed: report_versions\.conversation_id, report_versions\.version_number/,
   );
 });
