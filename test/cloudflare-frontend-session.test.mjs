@@ -16,7 +16,7 @@ test('frontend restores account state from the signed session and sends protecte
 test('frontend clears wallet-scoped state after a session failure or account change', () => {
   assert.match(appJs, /async function clearAuthenticatedState\(\)/);
   assert.match(appJs, /res\.status === 401[\s\S]*?clearAuthenticatedState/);
-  assert.match(appJs, /accountsChanged[\s\S]*?clearAuthenticatedState/);
+  assert.match(appJs, /accountsChanged[\s\S]*?disconnectWallet/);
 });
 
 test('frontend signs only a valid Cloudflare challenge message and redirects Pages previews to the canonical workspace', () => {
@@ -25,4 +25,11 @@ test('frontend signs only a valid Cloudflare challenge message and redirects Pag
   assert.match(appJs, /params: \[challengeMessage, wallet\]/);
   assert.match(appJs, /bazi-culture\.pages\.dev/);
   assert.match(appJs, /location\.replace\(canonicalUrl\)/);
+});
+
+test('frontend authentication submits a username-free authenticate challenge', () => {
+  assert.match(appJs, /fetchApi\(`?\/api\/auth\/challenge/);
+  assert.match(appJs, /operation[\s=:]+['"]authenticate['"]/);
+  assert.match(appJs, /fetchApi\(['"]\/api\/auth\/authenticate['"]/);
+  assert.doesNotMatch(appJs, /authUsername/);
 });

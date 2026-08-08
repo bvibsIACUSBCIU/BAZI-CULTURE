@@ -10,6 +10,7 @@ const SIX_STAGE_LABELS = [
 let currentWallet = null;
 let currentAccount = null;
 let selectedAuthWallet = null;
+let isGuestSession = false;
 let activeProfile = null;
 let profiles = [];
 let currentReport = '';
@@ -24,6 +25,85 @@ let savedSessions = [];
 const BACKEND_HOSTS = [''];
 const CANONICAL_WORKSPACE_ORIGIN = 'https://bazi.hlabs.me';
 const ACTIVE_CONVERSATION_STORAGE_KEY = 'liangyi_active_conversation';
+const GUEST_SESSION_STORAGE_KEY = 'liangyi_guest_session_v1';
+
+const emptyGuestSession = () => ({
+    version: 1,
+    profiles: [],
+    activeProfileId: null,
+    sessions: [],
+    activeConversationId: null,
+    reportVersions: []
+});
+
+let guestSession = emptyGuestSession();
+
+function loadGuestSession() {
+    try {
+        const raw = sessionStorage.getItem(GUEST_SESSION_STORAGE_KEY);
+        if (!raw) return emptyGuestSession();
+        const parsed = JSON.parse(raw);
+        return {
+            ...emptyGuestSession(),
+            ...parsed,
+            version: 1,
+            profiles: Array.isArray(parsed?.profiles) ? parsed.profiles : [],
+            sessions: Array.isArray(parsed?.sessions) ? parsed.sessions : [],
+            reportVersions: Array.isArray(parsed?.reportVersions) ? parsed.reportVersions : []
+        };
+    } catch (_) {
+        return emptyGuestSession();
+    }
+}
+
+function saveGuestSession() {
+    if (!isGuestSession) return;
+    guestSession = {
+        ...emptyGuestSession(),
+        ...guestSession,
+        version: 1,
+        profiles: Array.isArray(profiles) ? profiles : [],
+        activeProfileId: activeProfile?.id || guestSession.activeProfileId || null,
+        sessions: Array.isArray(savedSessions) ? savedSessions : [],
+        activeConversationId,
+        reportVersions: Array.isArray(activeReportVersions) ? activeReportVersions : []
+    };
+    try {
+        sessionStorage.setItem(GUEST_SESSION_STORAGE_KEY, JSON.stringify(guestSession));
+    } catch (_) {
+        // Private browsing or quota failures keep the state in memory only.
+    }
+}
+
+function clearGuestSession() {
+    guestSession = emptyGuestSession();
+    try { sessionStorage.removeItem(GUEST_SESSION_STORAGE_KEY); } catch (_) {}
+}
+
+function initializeGuestSession() {
+    isGuestSession = true;
+    currentWallet = null;
+    currentAccount = null;
+    guestSession = loadGuestSession();
+    profiles = guestSession.profiles;
+    savedSessions = guestSession.sessions;
+    activeConversationId = guestSession.activeConversationId || null;
+    activeReportVersions = guestSession.reportVersions;
+    activeProfile = profiles.find(profile => profile.id === guestSession.activeProfileId) || profiles[0] || null;
+    renderProfileList();
+    renderHistoryUI();
+    if (activeProfile) {
+        setActiveProfile(activeProfile, { persist: false });
+        if (activeConversationId) {
+            const session = savedSessions.find(item => item.id === activeConversationId);
+            if (session) applyConversationDetail(null, session);
+        }
+    } else {
+        renderUnconnectedState();
+        renderNoProfilesState();
+    }
+    saveGuestSession();
+}
 
 function redirectPagesPreviewToCanonicalWorkspace() {
     const hostname = window.location.hostname;
@@ -108,11 +188,9 @@ function initDOM() {
     DOM.authModal              = $('auth-modal');
     DOM.authClose              = $('auth-close');
     DOM.authCancel             = $('auth-cancel');
-    DOM.authUsername           = $('auth-username');
     DOM.authChooseWalletBtn    = $('auth-choose-wallet-btn');
     DOM.authWalletAddress      = $('auth-wallet-address');
-    DOM.authRegisterBtn        = $('auth-register-btn');
-    DOM.authLoginBtn           = $('auth-login-btn');
+    DOM.authSubmitBtn          = $('auth-submit-btn');
     DOM.authMessage            = $('auth-message');
     
     // Chat
@@ -251,8 +329,7 @@ function setupEventListeners() {
         if (e.target === DOM.authModal) closeAuthModal();
     });
     DOM.authChooseWalletBtn?.addEventListener('click', chooseAuthWallet);
-    DOM.authRegisterBtn?.addEventListener('click', () => submitWalletAuth('register'));
-    DOM.authLoginBtn?.addEventListener('click', () => submitWalletAuth('login'));
+    DOM.authSubmitBtn?.addEventListener('click', submitWalletAuth);
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && DOM.profileModal?.style.display === 'flex') {
             closeModal();
@@ -399,11 +476,10 @@ function openAuthModal() {
         return;
     }
     selectedAuthWallet = null;
-    if (DOM.authUsername) DOM.authUsername.value = '';
     if (DOM.authWalletAddress) DOM.authWalletAddress.textContent = '尚未选择钱包';
-    showAuthMessage('先输入用户名并选择当前 MetaMask 钱包，再进行注册或登录签名。');
+    showAuthMessage('先选择当前钱包，再点击按钮完成签名认证。');
     if (DOM.authModal) DOM.authModal.style.display = 'flex';
-    DOM.authUsername?.focus();
+    DOM.authChooseWalletBtn?.focus();
 }
 
 function closeAuthModal() {
@@ -421,7 +497,7 @@ async function chooseAuthWallet() {
         if (!wallet) throw new Error('未返回钱包地址');
         selectedAuthWallet = wallet;
         if (DOM.authWalletAddress) DOM.authWalletAddress.textContent = wallet;
-        showAuthMessage('钱包已选择。请确认用户名后点击注册或登录。');
+        showAuthMessage('钱包已选择，请点击“选择钱包并签名”。');
     } catch (err) {
         console.warn('Wallet selection cancelled or failed:', err.message);
         showAuthMessage(`未选择钱包：${err.message || '请解锁钱包后重试。'}`);
@@ -439,29 +515,29 @@ async function getCurrentSelectedWallet() {
     return currentAddress;
 }
 
-async function submitWalletAuth(operation) {
+async function submitWalletAuth() {
     try {
-        const username = DOM.authUsername?.value?.trim();
-        if (!username) throw new Error('请输入用户名');
-        if (username.length > 40) throw new Error('用户名最多 40 个字符');
         if (!selectedAuthWallet) throw new Error('请先选择钱包');
         const wallet = await getCurrentSelectedWallet();
-        const params = new URLSearchParams({ wallet, operation, username });
+        const operation = 'authenticate';
+        const params = new URLSearchParams({ wallet, operation });
         const challengeData = await fetchApi(`/api/auth/challenge?${params}`);
         // Cloudflare's secure challenge uses `message`; `challenge` remains only for the local legacy server.
         const challengeMessage = challengeData?.message || challengeData?.challenge;
         if (typeof challengeMessage !== 'string' || !challengeMessage.trim()) {
             throw new Error('认证服务未返回有效签名内容。请使用正式工作台域名后重试。');
         }
-        // 仅在用户点击“注册”或“登录”后签名；签名目标必须仍是当前 MetaMask 账户。
+        // 仅在用户点击认证按钮后签名；签名目标必须仍是当前 MetaMask 账户。
         await getCurrentSelectedWallet();
         const signature = await window.ethereum.request({ method: 'personal_sign', params: [challengeMessage, wallet] });
         await getCurrentSelectedWallet();
-        const authResult = await fetchApi(`/api/auth/${operation}`, {
+        const authResult = await fetchApi('/api/auth/authenticate', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ wallet, username, challengeId: challengeData.challengeId, signature })
+            body: JSON.stringify({ wallet, challengeId: challengeData.challengeId, signature })
         });
         if (!authResult?.account?.walletAddress) throw new Error('钱包签名验证失败');
+        clearGuestSession();
+        isGuestSession = false;
         await setWallet(authResult.account.walletAddress);
         closeAuthModal();
     } catch (err) {
@@ -486,6 +562,7 @@ async function switchWalletAccount() {
 }
 
 async function clearAuthenticatedState() {
+    isGuestSession = false;
     currentAccount = null;
     currentWallet = null;
     activeProfile = null;
@@ -499,7 +576,7 @@ async function clearAuthenticatedState() {
     });
     renderProfileList();
     renderHistoryUI();
-    renderUnconnectedState();
+    initializeGuestSession();
 }
 
 async function disconnectWallet() {
@@ -522,6 +599,8 @@ function setupEthereumListeners() {
 
 async function bootstrapAuthenticatedAccount() {
     const result = await fetchApi('/api/auth/me');
+    isGuestSession = false;
+    clearGuestSession();
     currentAccount = result.account;
     currentWallet = currentAccount.walletAddress;
     const short = `${currentWallet.substring(0,6)}...${currentWallet.substring(38)}`;
@@ -541,10 +620,11 @@ async function setWallet(address) {
 
 function checkWalletConnection() {
     if (typeof window.ethereum === 'undefined') {
-        clearAuthenticatedState();
+        initializeGuestSession();
         return;
     }
     bootstrapAuthenticatedAccount().catch(() => {
+        initializeGuestSession();
         window.ethereum.request({ method: 'eth_accounts' }).then(setWalletCandidate).catch(() => {});
     });
 }
@@ -639,6 +719,14 @@ function sanitizeDateStr(rawDate) {
 }
 
 async function loadProfiles() {
+    if (isGuestSession) {
+        profiles = guestSession.profiles;
+        activeProfile = profiles.find(profile => profile.id === guestSession.activeProfileId) || profiles[0] || null;
+        renderProfileList();
+        if (activeProfile) setActiveProfile(activeProfile, { persist: false });
+        else renderNoProfilesState();
+        return;
+    }
     if (!currentWallet) {
         profiles = [];
         activeProfile = null;
@@ -667,7 +755,7 @@ async function loadProfiles() {
 function renderProfileList() {
     if (!DOM.profileList) return;
 
-    if (!currentWallet) {
+    if (!currentWallet && !isGuestSession) {
         DOM.profileList.innerHTML = '<div class="empty-state" style="padding:12px; color:#888; font-size:12px; text-align:center;">未连接钱包</div>';
         if (DOM.profileDropdown) DOM.profileDropdown.innerHTML = '<div class="dropdown-item">未连接钱包</div>';
         return;
@@ -779,12 +867,16 @@ async function handleDeleteProfile(id) {
     if (!p) return;
     if (!confirm(`确定要删除命主【${p.name}】吗？`)) return;
 
-    try {
-        const result = await fetchApi(`/api/profile?profileId=${encodeURIComponent(id)}`, { method: 'DELETE' });
-        profiles = Array.isArray(result.profiles) ? result.profiles : profiles.filter(x => x.id !== id);
-    } catch (error) {
-        console.error('Profile deletion failed:', error);
-        return alert('删除失败，请稍后重试。');
+    if (isGuestSession) {
+        profiles = profiles.filter(x => x.id !== id);
+    } else {
+        try {
+            const result = await fetchApi(`/api/profile?profileId=${encodeURIComponent(id)}`, { method: 'DELETE' });
+            profiles = Array.isArray(result.profiles) ? result.profiles : profiles.filter(x => x.id !== id);
+        } catch (error) {
+            console.error('Profile deletion failed:', error);
+            return alert('删除失败，请稍后重试。');
+        }
     }
     saveProfilesLocally();
 
@@ -793,6 +885,8 @@ async function handleDeleteProfile(id) {
             setActiveProfile(profiles[0]);
         } else {
             activeProfile = null;
+            guestSession.activeProfileId = null;
+            saveGuestSession();
             renderProfileList();
         }
     } else {
@@ -800,14 +894,15 @@ async function handleDeleteProfile(id) {
     }
 }
 
-function setActiveProfile(profile) {
+function setActiveProfile(profile, { persist = true } = {}) {
     activeProfile = profile;
     const cleanDate = sanitizeDateStr(profile.date);
     profile.date = cleanDate;
 
-    if (currentAccount?.preferences?.activeProfileId !== profile.id) {
+    if (persist && currentAccount?.preferences?.activeProfileId !== profile.id) {
         persistActiveProfile(profile.id);
     }
+    if (isGuestSession) saveGuestSession();
 
     renderProfileList();
 
@@ -821,6 +916,11 @@ function setActiveProfile(profile) {
 }
 
 async function persistActiveProfile(profileId) {
+    if (isGuestSession) {
+        guestSession.activeProfileId = profileId;
+        saveGuestSession();
+        return;
+    }
     try {
         const preferences = await fetchApi('/api/preferences', {
             method: 'PATCH',
@@ -872,16 +972,21 @@ async function handleCreateProfile() {
         birthplace
     };
 
-    try {
-        const res = await fetchApi('/api/profile', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'add', ...newProf })
-        });
-        const created = res.profile || res;
-        profiles.push(created);
-    } catch(error) {
-        return alert(`保存命主失败：${error.message || '请稍后重试。'}`);
+    if (isGuestSession) {
+        newProf.id = `guest-profile-${crypto.randomUUID()}`;
+        profiles.push(newProf);
+    } else {
+        try {
+            const res = await fetchApi('/api/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'add', ...newProf })
+            });
+            const created = res.profile || res;
+            profiles.push(created);
+        } catch(error) {
+            return alert(`保存命主失败：${error.message || '请稍后重试。'}`);
+        }
     }
 
     saveProfilesLocally();
@@ -890,7 +995,10 @@ async function handleCreateProfile() {
 }
 
 function saveProfilesLocally() {
-    // Account data is authoritative in D1; this function remains for existing callers.
+    if (isGuestSession) {
+        guestSession.profiles = profiles;
+        saveGuestSession();
+    }
 }
 
 // ─── 三大经典命盘渲染 (基础四柱, 紫微十二宫, 时家奇门) ───────────────────────────
@@ -1128,6 +1236,15 @@ async function safeFetchQimenApi(profile) {
 
 // ─── 历史对话加载 & 收藏管理 ──────────────────────────────────────────────────
 async function loadHistory({ restoreActive = true } = {}) {
+    if (isGuestSession) {
+        savedSessions = guestSession.sessions;
+        renderHistoryUI();
+        if (restoreActive && activeConversationId) {
+            const session = savedSessions.find(item => item.id === activeConversationId);
+            if (session) applyConversationDetail(null, session);
+        }
+        return;
+    }
     if (!currentWallet) {
         savedSessions = [];
         renderHistoryUI();
@@ -1145,6 +1262,13 @@ async function loadHistory({ restoreActive = true } = {}) {
 }
 
 async function restoreConversationFromHistory() {
+    if (isGuestSession) {
+        if (activeConversationId) {
+            const session = savedSessions.find(item => item.id === activeConversationId);
+            if (session) applyConversationDetail(null, session);
+        }
+        return;
+    }
     const persistedConversationId = localStorage.getItem(ACTIVE_CONVERSATION_STORAGE_KEY);
     try {
         const detail = await restoreOwnedConversation({
@@ -1159,7 +1283,7 @@ async function restoreConversationFromHistory() {
 }
 
 function renderHistoryUI() {
-    if (!currentWallet) {
+    if (!currentWallet && !isGuestSession) {
         if (DOM.bookmarkList) DOM.bookmarkList.innerHTML = '<p class="placeholder-text" style="padding:8px; color: #888; font-size: 13px;">请连接钱包查看收藏</p>';
         if (DOM.historyList) DOM.historyList.innerHTML = '<p class="placeholder-text" style="padding:8px; color: #888; font-size: 13px;">请连接钱包查看历史</p>';
         return;
@@ -1230,12 +1354,15 @@ function bindSessionItemEvents(container) {
 }
 
 async function toggleSessionBookmark(sessionId) {
-    if (!currentWallet) return;
+    if (!currentWallet && !isGuestSession) return;
     const s = savedSessions.find(x => x.id === sessionId);
     if (s) {
         s.bookmarked = !s.bookmarked;
         renderHistoryUI();
+        if (isGuestSession) saveGuestSession();
     }
+
+    if (isGuestSession) return;
 
     try {
         await fetchApi('/api/session-history/bookmark', {
@@ -1249,6 +1376,11 @@ async function toggleSessionBookmark(sessionId) {
 async function loadSessionDetail(sessionId) {
     const s = savedSessions.find(x => x.id === sessionId);
     if (!s) return;
+
+    if (isGuestSession) {
+        applyConversationDetail(null, s);
+        return;
+    }
 
     let detail = null;
     try {
@@ -1266,7 +1398,12 @@ function applyConversationDetail(detail, legacySession = null) {
     const session = detail?.session || legacySession;
     if (!session?.id) return;
     activeConversationId = session.id;
-    localStorage.setItem(ACTIVE_CONVERSATION_STORAGE_KEY, activeConversationId);
+    if (isGuestSession) {
+        guestSession.activeConversationId = activeConversationId;
+        saveGuestSession();
+    } else {
+        localStorage.setItem(ACTIVE_CONVERSATION_STORAGE_KEY, activeConversationId);
+    }
     const s = legacySession || savedSessions.find(item => item.id === session.id) || session;
     const messages = Array.isArray(detail?.messages) ? detail.messages : buildLegacyConversationMessages(s);
     const reports = Array.isArray(detail?.reports) ? detail.reports : buildLegacyConversationReports(s);
@@ -1348,6 +1485,10 @@ function renderReportVersions(reports = [], selectedVersion = null) {
         || null;
     selectedReportVersion = chosen?.versionNumber || null;
     currentReport = chosen?.reportMarkdown || '';
+    if (isGuestSession) {
+        guestSession.reportVersions = activeReportVersions;
+        saveGuestSession();
+    }
 
     if (DOM.reportVersionSelector) {
         DOM.reportVersionSelector.innerHTML = '';
@@ -1407,7 +1548,13 @@ function renderReportEvidenceLink(chartSummary = '') {
 
 function resetConversationThread() {
     activeConversationId = null;
-    localStorage.removeItem(ACTIVE_CONVERSATION_STORAGE_KEY);
+    if (isGuestSession) {
+        guestSession.activeConversationId = null;
+        guestSession.reportVersions = [];
+        saveGuestSession();
+    } else {
+        localStorage.removeItem(ACTIVE_CONVERSATION_STORAGE_KEY);
+    }
     activeReportVersions = [];
     selectedReportVersion = null;
     currentReport = '';
@@ -1420,10 +1567,10 @@ function resetConversationThread() {
 }
 
 async function addSessionToHistory(sessionData) {
-    if (!currentWallet) return;
+    if (!currentWallet && !isGuestSession) return;
     const newSess = {
-        id: `sess-${Date.now()}`,
-        wallet: currentWallet,
+        id: isGuestSession ? (activeConversationId || `guest-session-${Date.now()}`) : `sess-${Date.now()}`,
+        wallet: currentWallet || null,
         profileId: activeProfile?.id || 'default',
         profileName: activeProfile?.name || '命主',
         title: sessionData.title || (sessionData.question ? `解答: ${sessionData.question.slice(0, 15)}...` : '八字运势解读'),
@@ -1437,6 +1584,11 @@ async function addSessionToHistory(sessionData) {
     savedSessions.unshift(newSess);
     renderHistoryUI();
 
+    if (isGuestSession) {
+        saveGuestSession();
+        return;
+    }
+
     try {
         await fetchApi('/api/session-history', {
             method: 'POST',
@@ -1449,7 +1601,7 @@ async function addSessionToHistory(sessionData) {
 // ─── 20 Agent 消息发送与推流 ─────────────────────────────────────────────────
 async function sendMessage() {
     if (isThinking) return;
-    if (!currentWallet) return alert('请先点击右上角【连接钱包】签名');
+    if (!currentWallet && !isGuestSession) return alert('请先点击右上角【连接钱包】签名');
     if (!activeProfile) return alert('请先在左侧边栏点击【+】创建命主档案');
     const text = DOM.chatInput ? DOM.chatInput.value.trim() : '';
     if (!text) return alert('请输入您想了解的命理问题');
@@ -1474,21 +1626,29 @@ async function sendMessage() {
     if (headerTitle) headerTitle.textContent = '正在连接 6-Stage 命理推演服务...';
 
     const mode = document.querySelector('input[name="chat-mode"]:checked')?.value || 'long';
-    const agentMap = {};
+    const agentMap = { question: text, profileName: activeProfile.name };
+    const endpoint = isGuestSession ? '/api/guest/chat' : '/api/chat';
+    const payload = isGuestSession
+        ? {
+            profile: activeProfile,
+            question: text,
+            previousReport: getLatestImmutableReportMarkdown()
+        }
+        : {
+            profileId: activeProfile.id,
+            question: text,
+            mode,
+            requestId: crypto.randomUUID(),
+            conversationId: activeConversationId,
+            previousReport: getLatestImmutableReportMarkdown()
+        };
 
     try {
-        const response = await fetch('/api/chat', {
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
-            body: JSON.stringify({
-                profileId: activeProfile.id,
-                question: text,
-                mode,
-                requestId: crypto.randomUUID(),
-                conversationId: activeConversationId,
-                previousReport: getLatestImmutableReportMarkdown()
-            })
+            body: JSON.stringify(payload)
         });
 
         if (!response.ok || !response.body) {
@@ -1592,7 +1752,14 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
 
     if (type === 'session_start') {
         activeConversationId = event.sessionId || event.conversationId || activeConversationId;
-        if (activeConversationId) localStorage.setItem(ACTIVE_CONVERSATION_STORAGE_KEY, activeConversationId);
+        if (activeConversationId) {
+            if (isGuestSession) {
+                guestSession.activeConversationId = activeConversationId;
+                saveGuestSession();
+            } else {
+                localStorage.setItem(ACTIVE_CONVERSATION_STORAGE_KEY, activeConversationId);
+            }
+        }
         if (headerTitle) headerTitle.textContent = `正在为「${event.profileName || activeProfile?.name}」分析，请稍候`;
         if (stepsDiv) stepsDiv.innerHTML = '<div class="pipeline-stage-list"></div>';
     }
@@ -1668,6 +1835,13 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
                 ? activeReportVersions.map(report => report.versionNumber === reportVersion ? nextReport : report)
                 : [...activeReportVersions, nextReport];
             renderReportVersions(nextVersions, reportVersion);
+            agentMap.latestReport = event.markdown;
+            agentMap.latestSummary = event.summary || agentMap.latestSummary || '';
+            agentMap.latestChartSummary = event.chartSummary || agentMap.latestChartSummary || '';
+            if (isGuestSession) {
+                guestSession.reportVersions = activeReportVersions;
+                saveGuestSession();
+            }
         }
     }
 
@@ -1675,6 +1849,7 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
         if (event.markdown) {
             appendStageDetail(stepsDiv, 3, '完整解读已生成');
             renderPipelineReportPreview(event.markdown);
+            agentMap.latestReport = event.markdown;
         }
     }
 
@@ -1740,7 +1915,17 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
             const sec = Math.round((event.duration || 3000) / 1000);
             headerTitle.textContent = event.serviceDegraded ? `分析完成，部分服务暂不可用 · ${sec}s` : `分析完成 · ${sec}s`;
         }
-        loadHistory();
+        if (agentMap.latestReport || currentReport) {
+            addSessionToHistory({
+                title: `解答: ${agentMap.question.slice(0, 15)}...`,
+                question: agentMap.question,
+                summary: agentMap.latestSummary || '',
+                reportMarkdown: agentMap.latestReport || currentReport,
+                chartSummary: agentMap.latestChartSummary || ''
+            });
+        } else {
+            loadHistory();
+        }
     }
 }
 

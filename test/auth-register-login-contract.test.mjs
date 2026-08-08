@@ -130,9 +130,11 @@ test('frontend exposes an auth modal and never signs while checking eth_accounts
   const appHtml = readFileSync(new URL('../app.html', import.meta.url), 'utf8');
 
   assert.match(appHtml, /id="auth-modal"/);
-  assert.match(appHtml, /id="auth-username"/);
-  assert.match(appHtml, /id="auth-register-btn"/);
-  assert.match(appHtml, /id="auth-login-btn"/);
+  assert.match(appHtml, /id="auth-submit-btn"/);
+  assert.doesNotMatch(appHtml, /id="auth-username"/);
+  assert.doesNotMatch(appHtml, /id="auth-register-btn"/);
+  assert.doesNotMatch(appHtml, /id="auth-login-btn"/);
+  assert.match(appJs, /operation[\s=:]+['"]authenticate['"]/);
   assert.doesNotMatch(appJs, /window\.prompt\(/);
   assert.match(appJs, /function checkWalletConnection\(\)[\s\S]*?eth_accounts[\s\S]*?setWalletCandidate/);
   assert.doesNotMatch(appJs, /function checkWalletConnection\(\)[\s\S]*?connectWallet\(/);

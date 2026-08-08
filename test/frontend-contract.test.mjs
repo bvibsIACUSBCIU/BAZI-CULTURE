@@ -9,7 +9,7 @@ const appCss = readFileSync(new URL('../app.css', import.meta.url), 'utf8');
 test('前端不含名字驱动的伪造命盘和客户端模拟 Agent 输出', () => {
   assert.doesNotMatch(appJs, /isWangling|isHanli|runClientAgentSimulation/);
   assert.match(appJs, /safeFetchBaziApi/);
-  assert.match(appJs, /fetch\('\/api\/chat'/);
+  assert.match(appJs, /const endpoint = isGuestSession \? ['"]\/api\/guest\/chat['"] : ['"]\/api\/chat['"]/);
 });
 
 test('历史报告回载保留摘要并提供回到当前确定命盘的证据链接', () => {
@@ -54,6 +54,19 @@ test('工作台核心静态资源使用发布版本参数，避免浏览器继�
   assert.match(appHtml, /src="app\.js\?v=[^"]+"/);
   assert.match(appJs, /conversation-restore\.js\?v=\d+\.\d+/);
   assert.match(appJs, /report-sanitizer\.js\?v=\d+\.\d+/);
+});
+
+test('访客工作区只在浏览器会话中保存，并使用无持久化分析接口', () => {
+  assert.match(appJs, /const GUEST_SESSION_STORAGE_KEY\s*=\s*['"]liangyi_guest_session_v1['"]/);
+  assert.match(appJs, /sessionStorage\.getItem\(GUEST_SESSION_STORAGE_KEY\)/);
+  assert.match(appJs, /sessionStorage\.setItem\(GUEST_SESSION_STORAGE_KEY/);
+  assert.match(appJs, /fetch\(endpoint/);
+  assert.match(appJs, /const endpoint = isGuestSession \? ['"]\/api\/guest\/chat['"] : ['"]\/api\/chat['"]/);
+  assert.doesNotMatch(appJs, /\/api\/profile[\s\S]{0,180}guest/);
+  assert.match(appHtml, /id="auth-submit-btn"/);
+  assert.doesNotMatch(appHtml, /id="auth-username"/);
+  assert.doesNotMatch(appHtml, /id="auth-register-btn"/);
+  assert.doesNotMatch(appHtml, /id="auth-login-btn"/);
 });
 
 test('前端续聊使用活跃会话并展示编号报告版本', () => {
