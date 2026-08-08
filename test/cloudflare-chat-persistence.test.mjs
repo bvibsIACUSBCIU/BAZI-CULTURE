@@ -15,6 +15,7 @@ function createHarness() {
   const db = createD1TestDatabase();
   db.exec(readFileSync(new URL('../migrations/0001_wallet_account.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../migrations/0003_threaded_conversation_versions.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../migrations/0004_conversation_turn_requests.sql', import.meta.url), 'utf8'));
   const repositories = createRepositories(db);
   const sessions = createSessionService({ sessions: repositories.sessions, environment: 'production' });
   return {
@@ -113,6 +114,41 @@ test('a second question appends transcript messages and creates report version 2
   assert.equal((await repositories.messages.list(user.id, thread.id)).length, 4);
   assert.equal((await repositories.reports.listByConversation(user.id, thread.id)).length, 2);
   assert.equal(await repositories.credits.countByIdempotencyKey(user.id, 'turn-2'), 1);
+});
+
+test('replaying an earlier turn request returns its original report without appending or debiting again', async (t) => {
+  const { db, repositories, sessions, env } = createHarness();
+  t.after(() => db.close());
+  const user = await repositories.users.findOrCreate(WALLET);
+  await repositories.credits.recordOnce({ userId: user.id, amount: 100, reason: 'welcome', idempotencyKey: `welcome:${user.id}` });
+  const profile = await repositories.profiles.create(user.id, {
+    name: '青木', date: '1994-03-08', time: '08:00', gender: 'female', timeKnown: true,
+  });
+  const cookie = (await sessions.issue({ userId: user.id })).cookie.split(';')[0];
+  let pipelineCalls = 0;
+  const countedPipeline = async (input) => {
+    pipelineCalls += 1;
+    return runPipeline(input);
+  };
+
+  await (await handleChatRequest(request('/api/chat', {
+    method: 'POST', cookie, body: { profileId: profile.id, question: '第一问', requestId: 'turn-1' },
+  }), { env, runPipeline: countedPipeline })).text();
+  const thread = (await repositories.conversations.list(user.id))[0];
+  await (await handleChatRequest(request('/api/chat', {
+    method: 'POST', cookie, body: { profileId: profile.id, conversationId: thread.id, question: '第二问', requestId: 'turn-2' },
+  }), { env, runPipeline: countedPipeline })).text();
+  const replayEvents = await readEvents(await handleChatRequest(request('/api/chat', {
+    method: 'POST', cookie, body: { profileId: profile.id, conversationId: thread.id, question: '第一问', requestId: 'turn-1' },
+  }), { env, runPipeline: countedPipeline }));
+
+  assert.equal((await repositories.messages.list(user.id, thread.id)).length, 4);
+  assert.deepEqual((await repositories.reports.listByConversation(user.id, thread.id)).map((report) => report.versionNumber), [1, 2]);
+  assert.equal(await repositories.credits.getBalance(user.id), 80);
+  assert.equal(await repositories.credits.countByIdempotencyKey(user.id, 'turn-1'), 1);
+  assert.equal(await repositories.credits.countByIdempotencyKey(user.id, 'turn-2'), 1);
+  assert.equal(pipelineCalls, 2);
+  assert.equal(replayEvents.find((event) => event.type === 'report').reportVersion, 1);
 });
 
 test('a foreign wallet cannot append to another wallet thread', async (t) => {

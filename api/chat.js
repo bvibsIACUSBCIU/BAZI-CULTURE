@@ -128,10 +128,14 @@ async function handleCloudflareChatRequest(req, { env, runPipeline }) {
   const question = String(body.question || '').trim();
   const requestId = String(body.requestId || crypto.randomUUID()).trim();
 
-  const existing = await auth.repositories.conversations.findByRequestId(auth.userId, requestId);
-  if (existing) {
-    const report = await auth.repositories.reportVersions.findLatest(auth.userId, existing.id);
-    return streamCompletedConversation(existing, report, 0);
+  const replay = await auth.repositories.turnRequests.findByRequestId(auth.userId, requestId);
+  if (replay) {
+    const conversation = await auth.repositories.conversations.findById(auth.userId, replay.conversationId);
+    if (!conversation) return json({ error: 'SESSION_NOT_FOUND' }, 404);
+    const report = replay.reportVersionNumber === null
+      ? null
+      : await auth.repositories.reportVersions.findByVersion(auth.userId, conversation.id, replay.reportVersionNumber);
+    return streamCompletedConversation(conversation, report, 0);
   }
 
   const profile = await auth.repositories.profiles.findById(auth.userId, body.profileId);
@@ -160,6 +164,7 @@ async function handleCloudflareChatRequest(req, { env, runPipeline }) {
         question,
         topic: 'overview',
       });
+    await auth.repositories.turnRequests.create(auth.userId, conversation.id, requestId);
     await auth.repositories.messages.append(auth.userId, conversation.id, 'user', question);
     return streamPipelineConversation({ conversation, profile, question, previousReport: body.previousReport || null, runPipeline, repositories: auth.repositories, userId: auth.userId });
   } catch (error) {
@@ -186,6 +191,7 @@ function streamPipelineConversation({ conversation, profile, question, previousR
           chart: result.chart || {},
           topic: result.topics?.[0]?.topic || 'overview',
         });
+        await repositories.turnRequests.complete(userId, conversation.requestId, report.versionNumber);
         sendEvent({ type: 'evidence', evidencePayload: result.evidencePayload });
         sendEvent({ type: 'conclusion', text: assistantMessage, conversationId: conversation.id, reportVersion: report.versionNumber, serviceDegraded: result.service?.degraded === true });
         sendEvent({ type: 'report', markdown: report.reportMarkdown, conversationId: conversation.id, reportVersion: report.versionNumber });

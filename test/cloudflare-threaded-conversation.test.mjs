@@ -53,6 +53,33 @@ test('thread migration keeps the legacy reports writer available and snapshots i
   );
 });
 
+test('turn-request migration backfills an existing request with its latest report version', async (t) => {
+  const { db } = createHarness();
+  t.after(() => db.close());
+  await db.exec(`
+    INSERT INTO users (id, wallet_address, created_at, updated_at)
+    VALUES ('user-legacy', '0x${'6'.repeat(40)}', '2026-08-08T00:00:00.000Z', '2026-08-08T00:00:00.000Z');
+    INSERT INTO conversations (id, user_id, request_id, title, question, topic, created_at, updated_at)
+    VALUES ('conversation-legacy', 'user-legacy', 'legacy-turn', '旧会话', '旧问题', 'career', '2026-08-08T00:00:00.000Z', '2026-08-08T00:00:00.000Z');
+    INSERT INTO reports (id, conversation_id, user_id, summary, report_markdown, chart_summary, chart_json, completed_at, created_at, updated_at)
+    VALUES ('report-legacy', 'conversation-legacy', 'user-legacy', '旧摘要', '旧报告', '旧命盘', '{}', NULL, '2026-08-08T00:00:00.000Z', '2026-08-08T00:00:00.000Z');
+  `);
+  await db.exec(readFileSync(new URL('../migrations/0003_threaded_conversation_versions.sql', import.meta.url), 'utf8'));
+  await db.prepare(`
+    INSERT INTO report_versions (id, conversation_id, user_id, version_number, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).bind('report-version-2', 'conversation-legacy', 'user-legacy', 2, '2026-08-08T00:00:00.000Z', '2026-08-08T00:00:00.000Z').run();
+
+  await db.exec(readFileSync(new URL('../migrations/0004_conversation_turn_requests.sql', import.meta.url), 'utf8'));
+  const request = await db.prepare(
+    'SELECT user_id, request_id, report_version_number FROM conversation_turn_requests WHERE conversation_id = ?',
+  ).bind('conversation-legacy').first();
+
+  assert.equal(request.user_id, 'user-legacy');
+  assert.equal(request.request_id, 'legacy-turn');
+  assert.equal(request.report_version_number, 2);
+});
+
 test('thread repositories append ordered messages and immutable report versions for the owner', async (t) => {
   const { db } = createHarness();
   t.after(() => db.close());
@@ -88,6 +115,25 @@ test('thread repositories append ordered messages and immutable report versions 
   ]);
   assert.equal((await db.prepare('SELECT COUNT(*) AS count FROM reports').first()).count, 0);
   assert.equal(await repositories.conversations.findById('foreign-user', thread.id), null);
+});
+
+test('appending the first real turn gives a placeholder conversation its question title', async (t) => {
+  const { db } = createHarness();
+  t.after(() => db.close());
+  const repositories = createRepositories(db, { createId: createSequentialId() });
+  const user = await repositories.users.findOrCreate(`0x${'5'.repeat(40)}`);
+  const profile = await repositories.profiles.create(user.id, {
+    name: '青木', date: '1994-03-08', time: '08:00', gender: 'female', timeKnown: true,
+  });
+  const placeholder = await repositories.conversations.create(user.id, {
+    profileId: profile.id, requestId: 'placeholder', question: '', topic: 'overview',
+  });
+
+  const appended = await repositories.conversations.appendTurn(user.id, placeholder.id, {
+    profileId: profile.id, requestId: 'first-real-turn', question: '我该如何推进事业？', topic: 'career',
+  });
+
+  assert.equal(appended.title, '解答: 我该如何推进事业？...');
 });
 
 function createSequentialId() {
