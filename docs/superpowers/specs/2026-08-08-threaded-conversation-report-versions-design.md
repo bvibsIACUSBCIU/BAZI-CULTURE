@@ -29,11 +29,14 @@ conversation ID, contiguous sequence number, role, and content. The server
 adds the user question before starting the pipeline and adds the final
 assistant summary after the pipeline completes.
 
-`reports` becomes a versioned table: a report belongs to a conversation and
-has a positive `version_number`; `(conversation_id, version_number)` is unique.
-The old unique constraint on `conversation_id` is removed by migration. A
-successful turn creates the next report version rather than overwriting an
-earlier result. All queries remain scoped to the signed-in user.
+The existing `reports` table remains a compatibility projection containing the
+latest legacy-format report. A new `report_versions` table stores immutable
+versions with a positive `version_number`; `(conversation_id,
+version_number)` is unique. The migration copies existing reports into version
+1 and installs temporary synchronization triggers so old Worker writes made
+during rollout keep version 1 current. Once the new Worker is deployed, it
+writes only `report_versions`; new turns never mutate an earlier version. All
+queries remain scoped to the signed-in user.
 
 ## API and streaming flow
 

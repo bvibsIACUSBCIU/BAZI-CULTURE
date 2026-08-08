@@ -4,14 +4,14 @@
 
 **Goal:** Persist one wallet-owned conversation thread across multiple questions, append its transcript in order, and create an immutable numbered report version for every successful question.
 
-**Architecture:** Keep `conversations` as the thread header, use `conversation_messages` for the durable ordered transcript, and migrate `reports` from one row per conversation to one row per report version. The authenticated chat endpoint will either create a thread or append a turn to the supplied owned thread, then write the assistant summary and next report version after the unchanged six-stage pipeline finishes. The browser will hold an active thread ID, restore a selected transcript from the authenticated history API, and select report versions independently.
+**Architecture:** Keep `conversations` as the thread header, use `conversation_messages` for the durable ordered transcript, and add `report_versions` beside the legacy `reports` latest-report projection. The authenticated chat endpoint will either create a thread or append a turn to the supplied owned thread, then write the assistant summary and next immutable report version after the unchanged six-stage pipeline finishes. The browser will hold an active thread ID, restore a selected transcript from the authenticated history API, and select report versions independently.
 
 **Tech Stack:** Cloudflare Workers, D1/SQLite migrations, JavaScript Fetch/SSE, native DOM, Node test runner.
 
 ## Global Constraints
 
 - Keep wallet-session authorization authoritative; never accept a wallet address as resource authorization.
-- Preserve existing user data with an additive D1 migration and migrate legacy reports to version 1.
+- Preserve existing user data with an additive D1 migration, migrate legacy reports to version 1, and keep old Worker writes synchronized during rollout.
 - Do not modify deterministic chart calculation, the six-stage pipeline, AI prompts, or dynamic report generation.
 - A new report version is created only after a successful pipeline result; failed turns retain their user message and add no report version.
 - Continue to use a unique request ID per turn for credit, message, and report-version idempotency.
@@ -27,7 +27,7 @@
 
 **Interfaces:**
 - Consumes: existing `conversations`, `conversation_messages`, and `reports` tables from `migrations/0001_wallet_account.sql`.
-- Produces: `reports.version_number`, a unique `(conversation_id, version_number)` key, and data-compatible version 1 rows for existing reports.
+- Produces: `report_versions.version_number`, a unique `(conversation_id, version_number)` key, version 1 rows for existing reports, and temporary triggers that mirror old `reports` writes.
 
 - [ ] **Step 1: Write the failing migration-contract test**
 
@@ -49,8 +49,7 @@ Expected: FAIL because migration `0003_threaded_conversation_versions.sql` is ab
 - [ ] **Step 3: Write the additive migration**
 
 ```sql
-ALTER TABLE reports RENAME TO reports_legacy;
-CREATE TABLE reports (
+CREATE TABLE report_versions (
   id TEXT PRIMARY KEY,
   conversation_id TEXT NOT NULL REFERENCES conversations(id),
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -64,9 +63,10 @@ CREATE TABLE reports (
   updated_at TEXT NOT NULL,
   UNIQUE (conversation_id, version_number)
 );
-INSERT INTO reports (...) SELECT ..., 1, ... FROM reports_legacy;
-DROP TABLE reports_legacy;
-CREATE INDEX reports_by_conversation_version ON reports(conversation_id, version_number DESC);
+INSERT INTO report_versions (...) SELECT ..., 1, ... FROM reports;
+CREATE INDEX report_versions_by_conversation ON report_versions(conversation_id, version_number DESC);
+CREATE TRIGGER report_versions_sync_legacy_insert ...;
+CREATE TRIGGER report_versions_sync_legacy_update ...;
 ```
 
 - [ ] **Step 4: Run the migration-contract test to verify it passes**
@@ -122,7 +122,8 @@ Expected: FAIL because messages are not written and reports are still overwritte
 ```js
 // conversations: createForTurn / appendTurn verify profile ownership, update title on first turn, and touch updated_at
 // messages: append(userId, conversationId, role, content) allocates MAX(sequence) + 1; list(...) orders by sequence ASC
-// reports.complete(...) calculates MAX(version_number) + 1 and INSERTs one immutable row
+// reports.complete(...) keeps the legacy latest projection for compatibility only
+// reportVersions.complete(...) calculates MAX(version_number) + 1 and INSERTs one immutable row
 // api/chat: resolve existing request first; otherwise create or own-check conversation, debit once, append user message, then on success append assistant summary and create versioned report
 ```
 
@@ -258,7 +259,7 @@ git commit -m "feat: continue chat threads with report versions"
 
 Run: `npm run cf:db:migrate:local`
 Run: `npx wrangler d1 execute liangyi-bazi-local --local --command "PRAGMA table_info(reports)"`
-Expected: a `version_number` column exists.
+Expected: a `report_versions.version_number` column and synchronization triggers exist; the legacy `reports` table remains writable.
 
 - [ ] **Step 2: Run all required project verification**
 
@@ -270,7 +271,7 @@ Expected: all unit tests pass and simulation exits 0 with calculated pillars, pi
 
 Run: `npm run cf:db:migrate:remote`
 Run: `npx wrangler d1 execute liangyi-bazi-production --remote --command "PRAGMA table_info(reports)"`
-Expected: the production schema has `version_number`; no user rows are deleted.
+Expected: production has `report_versions.version_number` and synchronization triggers; no user rows are deleted.
 
 - [ ] **Step 4: Deploy Worker and Pages from the current branch**
 
