@@ -20,17 +20,31 @@ test('历史报告回载保留摘要并提供回到当前确定命盘的证据�
   assert.match(appCss, /\.report-chart-evidence/);
 });
 
-test('六阶段服务端推演在界面中以明确阶段标签呈现', () => {
+test('六阶段服务端推演使用自然语言标签，不暴露内部 Stage 编号', () => {
   assert.match(appJs, /SIX_STAGE_LABELS/);
   assert.match(appJs, /formatStageTitle/);
-  assert.match(appJs, /6-Stage/);
+  assert.doesNotMatch(appJs, /Stage \$\{index \+ 1\}/);
+  assert.doesNotMatch(appJs, /等待服务端事件/);
   assert.doesNotMatch(appHtml, /20 位命理 Agent/);
 });
 
-test('阶段进度仅由服务端阶段事件推进，并为当前步骤显示思考动画', () => {
+test('阶段进度仅由服务端事件逐步插入，并可展开查看每一步详情', () => {
   assert.match(appJs, /type === 'phase_start'/);
   assert.match(appJs, /type === 'phase_done'/);
-  assert.match(appJs, /思考中\.\.\./);
-  assert.match(appCss, /\.pipeline-stage\.running \.pipeline-stage-status::before/);
+  assert.match(appJs, /function createSequentialPipelineStage/);
+  assert.match(appJs, /function appendStageDetail/);
+  assert.match(appJs, /details\.open/);
+  assert.match(appJs, /进行中/);
+  assert.match(appCss, /\.pipeline-stage\.running \.pipeline-stage-state::before/);
   assert.match(appCss, /@keyframes pipeline-spin/);
+});
+
+test('聊天消息使用两仪八卦头像和抽象用户头像', () => {
+  assert.match(appJs, /function createMessageAvatar/);
+  assert.match(appJs, /chat-message-row user-message-row/);
+  assert.match(appJs, /chat-message-row assistant-message-row/);
+  assert.match(appJs, /'☯'/);
+  assert.match(appCss, /\.chat-message-avatar/);
+  assert.match(appCss, /\.assistant-avatar/);
+  assert.match(appCss, /\.user-avatar/);
 });

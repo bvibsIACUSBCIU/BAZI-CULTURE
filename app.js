@@ -1366,33 +1366,68 @@ async function sendMessage() {
 }
 
 function formatStageTitle(index) {
-    return `Stage ${index + 1} · ${SIX_STAGE_LABELS[index]}`;
+    return SIX_STAGE_LABELS[index] || '分析步骤';
 }
 
-function renderPipelineStages(stepsDiv) {
-    if (!stepsDiv) return;
-    stepsDiv.innerHTML = `<div class="pipeline-stage-list">${SIX_STAGE_LABELS.map((_, index) => `
-        <div class="pipeline-stage pending" data-stage="${index}">
-            <span>${formatStageTitle(index)}</span><span class="pipeline-stage-status">等待服务端事件</span>
-        </div>`).join('')}</div>`;
+function createSequentialPipelineStage(stepsDiv, index, state = 'running') {
+    if (!stepsDiv || !Number.isInteger(index) || index < 0 || index >= SIX_STAGE_LABELS.length) return null;
+    let list = stepsDiv.querySelector('.pipeline-stage-list');
+    if (!list) {
+        list = document.createElement('div');
+        list.className = 'pipeline-stage-list';
+        stepsDiv.appendChild(list);
+    }
+    let details = list.querySelector(`.pipeline-stage[data-stage="${index}"]`);
+    if (details) return details;
+
+    details = document.createElement('details');
+    details.className = `pipeline-stage ${state}`;
+    details.dataset.stage = String(index);
+    details.open = state === 'running';
+
+    const summary = document.createElement('summary');
+    summary.className = 'pipeline-stage-summary';
+    const title = document.createElement('span');
+    title.className = 'pipeline-stage-title';
+    title.textContent = formatStageTitle(index);
+    const stateEl = document.createElement('span');
+    stateEl.className = 'pipeline-stage-state';
+    stateEl.textContent = state === 'done' ? '已完成' : '进行中';
+    summary.append(title, stateEl);
+
+    const body = document.createElement('div');
+    body.className = 'pipeline-stage-detail';
+    details.append(summary, body);
+    list.appendChild(details);
+    return details;
+}
+
+function appendStageDetail(stepsDiv, index, text) {
+    // A stage is only made visible by its matching phase_start event.
+    const details = stepsDiv?.querySelector(`.pipeline-stage[data-stage="${index}"]`);
+    if (!details || text === undefined || text === null || text === '') return;
+    const body = details.querySelector('.pipeline-stage-detail');
+    const item = document.createElement('p');
+    item.className = 'pipeline-detail-item';
+    item.textContent = String(text);
+    body?.appendChild(item);
 }
 
 function updatePipelineStage(stepsDiv, index, state) {
-    const stage = stepsDiv?.querySelector(`.pipeline-stage[data-stage="${index}"]`);
-    if (!stage) return;
-    stage.className = `pipeline-stage ${state}`;
-    const status = stage.querySelector('.pipeline-stage-status');
-    if (status) {
-        status.textContent = state === 'done' ? '已确认' : state === 'running' ? '思考中...' : '等待服务端事件';
-    }
+    const details = createSequentialPipelineStage(stepsDiv, index, state);
+    if (!details) return;
+    details.className = `pipeline-stage ${state}`;
+    details.open = state === 'running';
+    const status = details.querySelector('.pipeline-stage-state');
+    if (status) status.textContent = state === 'done' ? '已完成' : '进行中';
 }
 
 function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
     const type = event.type || event.event;
 
     if (type === 'session_start') {
-        if (headerTitle) headerTitle.textContent = `正在为「${event.profileName || activeProfile?.name}」进行 6-Stage 命理分析...`;
-        renderPipelineStages(stepsDiv);
+        if (headerTitle) headerTitle.textContent = `正在为「${event.profileName || activeProfile?.name}」分析，请稍候`;
+        if (stepsDiv) stepsDiv.innerHTML = '<div class="pipeline-stage-list"></div>';
     }
 
     else if (type === 'phase_start') {
@@ -1404,67 +1439,29 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
     }
 
     else if (type === 'plan') {
-        if (headerTitle) headerTitle.textContent = `6-Stage Pipeline 分析规划中...`;
-        if (stepsDiv) {
-            (event.topics || []).forEach(t => {
-                (t.groups || []).forEach(g => {
-                    const groupId = `${t.topic}_${g.group_title.slice(0, 10)}`;
-                    const card = document.createElement('div');
-                    card.className = 'agent-step-card pending';
-                    card.id = `card-${groupId}`;
-                    const subtasksHtml = (g.subtasks || []).map(st => `<li>▫ ${st}</li>`).join('');
-                    card.innerHTML = `
-                        <div class="agent-step-header" style="cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
-                            <span class="agent-step-name">【${t.topic}】${g.group_title}</span>
-                            <span class="agent-step-status pending">准备中...</span>
-                        </div>
-                        <div class="agent-step-thinking" style="padding: 8px 12px; font-size: 13px; color: #666;">
-                            <ul style="margin: 0; padding-left: 16px;">${subtasksHtml}</ul>
-                        </div>
-                        <div class="group-result-box" style="display:none; padding: 10px 12px; background: rgba(255,255,255,0.05); border-radius: 6px; margin-top: 6px;"></div>
-                    `;
-                    stepsDiv.appendChild(card);
-                    agentMap[groupId] = card;
-                });
-            });
-        }
+        if (headerTitle) headerTitle.textContent = '正在整理本次分析重点';
+        (event.topics || []).forEach(t => (t.groups || []).forEach(g => {
+            const groupId = `${t.topic}_${g.group_title.slice(0, 10)}`;
+            appendStageDetail(stepsDiv, 1, `${t.topic}：${g.group_title}`);
+            (g.subtasks || []).forEach(subtask => appendStageDetail(stepsDiv, 1, subtask));
+            agentMap[groupId] = { groupTitle: g.group_title };
+        }));
     }
 
     else if (type === 'group_start') {
-        const card = agentMap[event.group_id];
-        if (card) {
-            card.className = 'agent-step-card running';
-            const statusEl = card.querySelector('.agent-step-status');
-            if (statusEl) {
-                statusEl.textContent = '分析中...';
-                statusEl.className = 'agent-step-status running';
-            }
-        }
+        if (headerTitle) headerTitle.textContent = '正在根据已计算事实进行分析';
+        const group = agentMap[event.group_id];
+        appendStageDetail(stepsDiv, 2, `开始分析：${group?.groupTitle || event.group_id || '当前分析项'}`);
     }
 
     else if (type === 'group_done') {
-        const card = agentMap[event.group_id];
-        if (card) {
-            card.className = 'agent-step-card done';
-            const statusEl = card.querySelector('.agent-step-status');
-            if (statusEl) {
-                statusEl.textContent = '✓ 完成';
-                statusEl.className = 'agent-step-status done';
-            }
-            const resultBox = card.querySelector('.group-result-box');
-            if (resultBox) {
-                resultBox.style.display = 'block';
-                const detailsHtml = (event.details || []).map(d => `<div style="color: #999; font-size: 12px; margin-top: 4px;">• ${d}</div>`).join('');
-                resultBox.innerHTML = `
-                    <div style="font-weight: bold; color: #e2b714; font-size: 14px;">${event.conclusion}</div>
-                    ${detailsHtml}
-                `;
-            }
-        }
+        appendStageDetail(stepsDiv, 2, event.conclusion || '该分析项已完成');
+        (event.details || []).forEach(detail => appendStageDetail(stepsDiv, 2, detail));
     }
 
     else if (type === 'report_start') {
-        if (headerTitle) headerTitle.textContent = `撰写全盘 Markdown 运势报告...`;
+        if (headerTitle) headerTitle.textContent = '正在整理完整解读';
+        appendStageDetail(stepsDiv, 3, '开始整理完整解读');
         if (DOM.reportContent) DOM.reportContent.innerHTML = '<em>正在生成运势报告正文...</em>';
         switchTab('tab-report');
     }
@@ -1488,6 +1485,7 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
 
     else if (type === 'report_done') {
         if (event.markdown) {
+            appendStageDetail(stepsDiv, 3, '完整解读已生成');
             currentReport = event.markdown;
             const parseFn = window.marked?.parse || window.marked || ((s) => s.replace(/\n/g, '<br>'));
             const html = typeof parseFn === 'function' ? parseFn(event.markdown) : event.markdown;
@@ -1498,6 +1496,14 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
     }
 
     else if (type === 'summary_delta') {
+        if (!agentMap.summaryDetail) {
+            const details = stepsDiv?.querySelector('.pipeline-stage[data-stage="4"]');
+            if (!details) return;
+            agentMap.summaryDetail = document.createElement('p');
+            agentMap.summaryDetail.className = 'pipeline-detail-item';
+            details?.querySelector('.pipeline-stage-detail')?.appendChild(agentMap.summaryDetail);
+        }
+        agentMap.summaryDetail.textContent += event.text_chunk || '';
         if (conclusionEl) {
             conclusionEl.style.display = 'block';
             const inner = conclusionEl.querySelector('.conclusion-text');
@@ -1514,10 +1520,11 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
     }
 
     else if (type === 'conclusion') {
-        if (headerTitle) headerTitle.textContent = event.serviceDegraded ? '分析完成 · AI 专业解读服务降级' : '6-Stage 命理分析完成';
+        if (headerTitle) headerTitle.textContent = event.serviceDegraded ? '分析完成，部分解读服务暂不可用' : '分析完成';
     }
 
     else if (type === 'recommend') {
+        (event.questions || []).forEach(question => appendStageDetail(stepsDiv, 5, question));
         if (conclusionEl && Array.isArray(event.questions) && event.questions.length > 0) {
             const chipsHtml = event.questions.map(q => `<button class="recommend-chip-btn" style="margin: 4px; padding: 6px 12px; background: rgba(226, 183, 20, 0.15); border: 1px solid rgba(226, 183, 20, 0.4); border-radius: 16px; color: #e2b714; font-size: 13px; cursor: pointer;" onclick="document.getElementById('chat-input').value='${q}';">${q}</button>`).join('');
             const container = document.createElement('div');
@@ -1530,7 +1537,7 @@ function handleSseEvent(event, stepsDiv, conclusionEl, headerTitle, agentMap) {
     else if (type === 'session_end') {
         if (headerTitle) {
             const sec = Math.round((event.duration || 3000) / 1000);
-            headerTitle.textContent = event.serviceDegraded ? `分析完成（服务降级）· 用时 ${sec}s` : `分析完成 · 用时 ${sec}s`;
+            headerTitle.textContent = event.serviceDegraded ? `分析完成，部分服务暂不可用 · ${sec}s` : `分析完成 · ${sec}s`;
         }
         loadHistory();
     }
@@ -1545,28 +1552,49 @@ function switchTab(tabId) {
     });
 }
 
+function createMessageAvatar(role) {
+    const avatar = document.createElement('div');
+    avatar.className = `chat-message-avatar ${role === 'assistant' ? 'assistant-avatar' : 'user-avatar'}`;
+    avatar.setAttribute('aria-hidden', 'true');
+    if (role === 'assistant') {
+        avatar.textContent = '☯';
+        return avatar;
+    }
+    const source = String(currentWallet || activeProfile?.id || Date.now());
+    let hash = 0;
+    for (const char of source) hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
+    avatar.style.setProperty('--avatar-hue', String(Math.abs(hash) % 360));
+    return avatar;
+}
+
 function appendUserMsg(text) {
     if (!DOM.messageList) return;
-    const div = document.createElement('div');
-    div.className = 'msg-user';
-    div.textContent = text;
-    DOM.messageList.appendChild(div);
+    const row = document.createElement('div');
+    row.className = 'chat-message-row user-message-row';
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-user';
+    bubble.textContent = text;
+    row.append(bubble, createMessageAvatar('user'));
+    DOM.messageList.appendChild(row);
     scrollChatToBottom();
 }
 
 function appendAgentMsg(id) {
     if (!DOM.messageList) return;
+    const row = document.createElement('div');
+    row.className = 'chat-message-row assistant-message-row';
     const div = document.createElement('div');
     div.className = 'msg-agent';
     div.id = id;
     div.innerHTML = `
         <div class="agent-msg-header">
-            <span class="agent-msg-title">初始化 20 Agent 协作流水线...</span>
+            <span class="agent-msg-title">正在准备分析</span>
         </div>
         <div class="agent-steps-container"></div>
         <div class="conclusion-card" style="display:none;"></div>
     `;
-    DOM.messageList.appendChild(div);
+    row.append(createMessageAvatar('assistant'), div);
+    DOM.messageList.appendChild(row);
     scrollChatToBottom();
 }
 
